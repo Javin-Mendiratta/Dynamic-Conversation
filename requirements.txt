@@ -1,0 +1,31 @@
+# Core dependencies for loading ESConv dataset
+datasets>=2.14.0
+huggingface-hub>=0.16.4
+
+# Data processing and analysis
+pandas>=1.5.3
+numpy>=1.24.3
+
+# Natural language processing
+transformers>=4.30.0
+torch>=2.0.0
+tokenizers>=0.13.0
+
+# Required dependencies
+requests>=2.31.0
+tqdm>=4.65.0
+PyYAML>=6.0
+packaging>=23.0
+filelock>=3.12.0
+
+# Visualization (required for emotion flow analysis)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.14.0
+
+# Optional: For JSON handling
+jsonlines>=3.1.0
+
+# Optional: For Jupyter notebook support
+jupyter>=1.0.0
+ipywidgets>=8.0.0
