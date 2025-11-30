@@ -250,7 +250,7 @@ class EmotionFlowAnalyzer:
         
         return pd.DataFrame(results)
     
-    def plot_transition_heatmap(self, save_path: str = 'results/emotion_transition_heatmap.png'):
+    def plot_transition_heatmap(self, save_path: str = '../results/emotion_transition_heatmap.png'):
         """
         Create heatmap visualization of emotion transitions.
         
@@ -280,7 +280,7 @@ class EmotionFlowAnalyzer:
         print(f"✓ Saved transition heatmap to {save_path}")
     
     def plot_sankey_diagram(self, conversation_id: int = 0, 
-                           save_path: str = 'results/emotion_sankey.html'):
+                           save_path: str = '../results/emotion_sankey.html'):
         """
         Create Sankey diagram for a single conversation's emotion flow.
         
@@ -329,7 +329,7 @@ class EmotionFlowAnalyzer:
         fig.write_html(save_path)
         print(f"✓ Saved Sankey diagram to {save_path}")
     
-    def plot_aggregate_emotion_flow(self, save_path: str = 'results/aggregate_emotion_flow.png',
+    def plot_aggregate_emotion_flow(self, save_path: str = '../results/aggregate_emotion_flow.png',
                                     max_turns: int = 20):
         """
         Plot aggregate emotion distribution across conversation turns.
@@ -414,7 +414,7 @@ def main():
     print(trajectory_scores.head())
     
     # Save results
-    trajectory_scores.to_csv('results/emotion_trajectory_scores.csv', index=False)
+    trajectory_scores.to_csv('../results/emotion_trajectory_scores.csv', index=False)
     print("\n✓ Saved trajectory scores to emotion_trajectory_scores.csv")
     
     # Generate visualizations
