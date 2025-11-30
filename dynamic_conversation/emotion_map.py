@@ -274,12 +274,14 @@ class EmotionFlowAnalyzer:
         plt.xlabel('To Emotion', fontsize=12)
         plt.ylabel('From Emotion', fontsize=12)
         plt.tight_layout()
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Saved transition heatmap to {save_path}")
+        plt.show()
         plt.close()
         
-        print(f"✓ Saved transition heatmap to {save_path}")
     
-    def plot_sankey_diagram(self, conversation_id: int = 0, 
+    def plot_sankey_diagram(self, conversation_id: int = 0,
                            save_path: str = '../results/emotion_sankey.html'):
         """
         Create Sankey diagram for a single conversation's emotion flow.
@@ -287,6 +289,7 @@ class EmotionFlowAnalyzer:
         Args:
             conversation_id: ID of conversation to visualize
             save_path: Path to save HTML file
+            show: Display the figure in supported environments (e.g., notebooks)
         """
         if conversation_id >= len(self.conversation_emotions):
             print(f"Warning: Conversation ID {conversation_id} not found. Using ID 0.")
@@ -326,8 +329,13 @@ class EmotionFlowAnalyzer:
             height=600
         )
         
-        fig.write_html(save_path)
-        print(f"✓ Saved Sankey diagram to {save_path}")
+        if save_path:
+            fig.write_html(save_path)
+            print(f"✓ Saved Sankey diagram to {save_path}")
+        
+        fig.show()
+        
+        return fig
     
     def plot_aggregate_emotion_flow(self, save_path: str = '../results/aggregate_emotion_flow.png',
                                     max_turns: int = 20):
@@ -370,10 +378,13 @@ class EmotionFlowAnalyzer:
         plt.ylabel('Count', fontsize=12)
         plt.legend(title='Emotion', bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.tight_layout()
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved aggregate emotion flow to {save_path}")
+        plt.show()
         plt.close()
         
-        print(f"✓ Saved aggregate emotion flow to {save_path}")
+        
 
 
 def main():
