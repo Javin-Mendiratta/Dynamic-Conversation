@@ -10,7 +10,6 @@ Emotion flow analysis and (future) strategy simulation for multi-turn dialogues.
 - `results/`: generated artifacts (heatmaps, Sankey, CSV scores)
 - `notebooks/`: ad hoc experiments
 - `pyproject.toml`: packaging metadata/deps
-- `requirements.txt`: dependency list for quick installs
 
 ## Install
 ```bash
