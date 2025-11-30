@@ -1,6 +1,6 @@
 from datasets import load_dataset
 
-class EsConv_Data():
+class EsConvData():
 
     def __init__(self):
         self.dataset = load_dataset("thu-coai/esconv")
