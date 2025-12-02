@@ -53,9 +53,7 @@ class EmotionFlowAnalyzer:
         """
         print(f"Loading emotion classifier: {model_name}")
         
-        # Automatically detect GPU availability
         device = 0 if (use_gpu and torch.cuda.is_available()) else -1
-        device_name = "GPU" if device == 0 else "CPU"
         
         self.classifier = pipeline(
             "text-classification",
@@ -77,7 +75,7 @@ class EmotionFlowAnalyzer:
         Returns:
             Dictionary containing primary emotion, confidence, and all emotion scores
         """
-        # Handle empty or invalid text
+
         if not text or not isinstance(text, str) or not text.strip():
             return {
                 'primary_emotion': 'neutral',
@@ -139,17 +137,14 @@ class EmotionFlowAnalyzer:
         self.conversation_emotions = []
         
         for idx in tqdm(range(len(data)), desc="Classifying emotions"):
-            # Parse JSON from text field
             try:
                 conv_data = json.loads(data[idx]['text'])
             except json.JSONDecodeError:
                 continue
             
-            # Extract dialog - the key is 'dialog' in ESConv
             if 'dialog' not in conv_data:
                 continue
             
-            # Classify emotions for this conversation
             emotion_flow = self.classify_conversation(conv_data['dialog'])
             
             self.conversation_emotions.append({
@@ -171,13 +166,11 @@ class EmotionFlowAnalyzer:
         """
         transitions = defaultdict(lambda: defaultdict(int))
         
-        # Count all transitions
         for conv in self.conversation_emotions:
             emotions = [turn['emotion'] for turn in conv['emotion_flow']]
             for i in range(len(emotions) - 1):
                 transitions[emotions[i]][emotions[i + 1]] += 1
         
-        # Convert to DataFrame
         transition_df = pd.DataFrame(transitions).fillna(0)
         transition_df = transition_df.reindex(
             index=self.EMOTIONS, 
@@ -185,7 +178,6 @@ class EmotionFlowAnalyzer:
             fill_value=0
         )
         
-        # Normalize to probabilities
         self.transition_matrix = transition_df.div(
             transition_df.sum(axis=1), 
             axis=0
@@ -299,17 +291,14 @@ class EmotionFlowAnalyzer:
         emotion_flow = conv['emotion_flow']
         emotions = [turn['emotion'] for turn in emotion_flow]
         
-        # Create node labels and links
         labels = [f"Turn {i+1}: {emotion}" for i, emotion in enumerate(emotions)]
         source = list(range(len(emotions) - 1))
         target = list(range(1, len(emotions)))
         value = [1] * (len(emotions) - 1)
         
-        # Assign colors based on emotions
         node_colors = [self.EMOTION_COLORS.get(e, self.EMOTION_COLORS['neutral']) 
                       for e in emotions]
         
-        # Create Sankey diagram
         fig = go.Figure(data=[go.Sankey(
             node=dict(
                 pad=15,
@@ -348,13 +337,11 @@ class EmotionFlowAnalyzer:
         """
         turn_emotions = defaultdict(lambda: defaultdict(int))
         
-        # Aggregate emotions by turn position
         for conv in self.conversation_emotions:
             for turn_idx, turn in enumerate(conv['emotion_flow']):
                 if turn_idx < max_turns:
                     turn_emotions[turn_idx][turn['emotion']] += 1
         
-        # Convert to DataFrame
         data = []
         for turn_idx in sorted(turn_emotions.keys()):
             for emotion in self.EMOTIONS:
@@ -367,8 +354,7 @@ class EmotionFlowAnalyzer:
         
         df = pd.DataFrame(data)
         pivot_df = df.pivot(index='turn', columns='emotion', values='count').fillna(0)
-        
-        # Create stacked area plot
+
         fig, ax = plt.subplots(figsize=(12, 6))
         pivot_df.plot.area(ax=ax, alpha=0.7)
         
@@ -390,7 +376,6 @@ class EmotionFlowAnalyzer:
 def main():
     """Execute emotion flow analysis pipeline."""
     
-    # Load dataset
     print("=" * 60)
     print("EMOTION FLOW ANALYSIS - ESConv Dataset")
     print("=" * 60)
@@ -398,11 +383,9 @@ def main():
     dataset = load_dataset("thu-coai/esconv")
     print(f"✓ Dataset loaded with {len(dataset['train'])} conversations")
     
-    # Initialize analyzer
     print("\n" + "=" * 60)
     analyzer = EmotionFlowAnalyzer(use_gpu=True)
     
-    # Process conversations
     print("\n" + "=" * 60)
     analyzer.process_dataset(dataset, max_conversations=100)
     
@@ -410,25 +393,21 @@ def main():
         print("\n❌ Error: No conversations were successfully processed!")
         return
     
-    # Compute transition matrix
     print("\n" + "=" * 60)
     print("Computing emotion transition matrix...")
     transition_matrix = analyzer.compute_transition_matrix()
     print("\nTransition Matrix:")
     print(transition_matrix.round(3))
     
-    # Compute trajectory scores
     print("\n" + "=" * 60)
     print("Computing emotion trajectory scores...")
     trajectory_scores = analyzer.compute_all_trajectory_scores()
     print("\nTrajectory Scores (first 5 conversations):")
     print(trajectory_scores.head())
     
-    # Save results
     trajectory_scores.to_csv('../results/emotion_trajectory_scores.csv', index=False)
     print("\n✓ Saved trajectory scores to emotion_trajectory_scores.csv")
     
-    # Generate visualizations
     print("\n" + "=" * 60)
     print("Generating visualizations...")
     print()
@@ -437,7 +416,6 @@ def main():
     analyzer.plot_sankey_diagram(conversation_id=0)
     analyzer.plot_aggregate_emotion_flow()
     
-    # Summary
     print("\n" + "=" * 60)
     print("✓ ANALYSIS COMPLETE!")
     print("=" * 60)
