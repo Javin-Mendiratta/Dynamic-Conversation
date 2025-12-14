@@ -17,7 +17,9 @@
 ## Evaluation & analysis
 - Goal: assess coherence/empathy and reproducibility of simulations.
 - Tasks:
-  - Add BERTScore/semantic similarity hooks and small manual-check sampling for generated replies.
+  - Add BERTScore/semantic similarity hooks and small manual-check sampling for generated replies (strategy adherence, empathy/helpfulness).
+  - Add a lightweight safety/toxicity probe on generated replies.
+  - Run multiple seeds/runs_per_pair and report variance/CI on shift tables.
   - Log run configs/seeds alongside outputs; add brief reproduction notes in `results/`.
   - ***SELECT EVALUATION METRICS BEYOND EMOTION SHIFT (BERTSCORE, MANUAL CHECKS, ???)***
 
@@ -25,7 +27,8 @@
 - Goal: keep APIs clean for notebooks; minimize CLIs.
 - Tasks:
   - Export new helpers via `dynamic_conversation/__init__.py`; keep `python -m dynamic_conversation` as smoke test only if retained.
-  - Handle API key config for OpenAI and rate-limit/backoff guidance. (Default: `OPENAI_API_KEY`, model `gpt-4o-mini`, retries/backoff in `SimulationConfig`; adjust per run if needed.)
+  - Handle API key config for OpenAI and rate-limit/backoff guidance. (Default: `OPENAI_API_KEY`, model `gpt-5-nano`, retries/backoff in `SimulationConfig`; adjust per run if needed.)
+  - ***ADD SECOND EMOTION CLASSIFIER FOR CROSS-CHECK OR DOCUMENT WHY SINGLE CLASSIFIER IS SUFFICIENT***
 
 ## Visualization defaults
 - Goal: consistent, reproducible outputs.

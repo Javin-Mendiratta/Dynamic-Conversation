@@ -44,7 +44,7 @@ print(prompt)
 
 # Single-turn simulation (requires OPENAI_API_KEY)
 from dynamic_conversation import SingleTurnSimulator
-sim = SingleTurnSimulator(use_gpu=False)
+sim = SingleTurnSimulator(use_gpu=False)  # prompts for key if env var is unset
 df = sim.run_batch(
     emotions=["anger", "joy"],
     strategies=[ResponseStrategy.VALIDATE, ResponseStrategy.GUIDE],

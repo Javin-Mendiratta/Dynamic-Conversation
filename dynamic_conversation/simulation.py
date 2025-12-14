@@ -16,6 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
+import getpass
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -89,10 +90,12 @@ class SingleTurnSimulator:
         emotion_model: str = "j-hartmann/emotion-english-distilroberta-base",
         use_gpu: bool = False,
         config: Optional[SimulationConfig] = None,
+        prompt_for_key: bool = True,
     ):
         self.config = config or SimulationConfig()
         self._client = None
         self._openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        self._prompt_for_key = prompt_for_key
         self.emotion_analyzer = EmotionFlowAnalyzer(model_name=emotion_model, use_gpu=use_gpu)
 
     def _ensure_client(self) -> None:
@@ -100,6 +103,13 @@ class SingleTurnSimulator:
             return
         if OpenAI is None:
             raise ImportError("openai package is required for simulation; install openai>=1.0.")
+        if not self._openai_api_key and self._prompt_for_key:
+            try:
+                entered = getpass.getpass("Enter OPENAI_API_KEY: ").strip()
+                if entered:
+                    self._openai_api_key = entered
+            except Exception:
+                pass
         if not self._openai_api_key:
             raise ValueError("OPENAI_API_KEY is required to run simulations.")
         self._client = OpenAI(api_key=self._openai_api_key)

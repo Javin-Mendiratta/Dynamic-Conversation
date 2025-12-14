@@ -21,6 +21,7 @@ Audience: anyone new picking up the project. This is the source of truth for how
 - Required for simulations only. Set `OPENAI_API_KEY` in your shell before running (`export OPENAI_API_KEY=sk-...`).
 - Default model: `gpt-5-nano`; configurable via `SimulationConfig.model`.
 - Defaults: temperature 0.7, max_tokens 220, retries with simple backoff.
+- If `OPENAI_API_KEY` is not set and `prompt_for_key=True` (default), `SingleTurnSimulator` will prompt for the key interactively; set `prompt_for_key=False` in headless runs.
 
 ## How seeding works (Phase 3)
 - Agent A seed is randomly sampled from synthetic templates per emotion label (anger/disgust/fear/joy/neutral/sadness/surprise).
