@@ -44,7 +44,7 @@ print(prompt)
 
 # Single-turn simulation (requires OPENAI_API_KEY)
 from dynamic_conversation import SingleTurnSimulator
-sim = SingleTurnSimulator(use_gpu=False)  # prompts for key if env var is unset
+sim = SingleTurnSimulator(use_gpu=False)  # prompts for key if env var is unset; default model gpt-5-nano (temp fixed at 1.0)
 df = sim.run_batch(
     emotions=["anger", "joy"],
     strategies=[ResponseStrategy.VALIDATE, ResponseStrategy.GUIDE],
@@ -58,7 +58,7 @@ print(df.head())
 
 ## Notes
 - GPU is optional; default `use_gpu=True` to auto-detect CUDA if available.
-- OpenAI API key required for simulations (`OPENAI_API_KEY` env variable). Default model: `gpt-5-nano`; tweak via `SimulationConfig`.
+- OpenAI API key required for simulations (`OPENAI_API_KEY` env variable). Default model: `gpt-5-nano` with temperature fixed at 1.0; tweak via `SimulationConfig`.
 - Simulation outputs default to `results/single_turn_simulation.csv` and `results/single_turn_heatmap.png` (configurable in `run_batch`).
 - Seeding: by default uses fixed synthetic templates per emotion; set `use_llm_seed=True` to let agent A generate its own seed utterance via the LLM for more variety.
 

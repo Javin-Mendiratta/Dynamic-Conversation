@@ -67,7 +67,7 @@ EMOTION_SEED_TEMPLATES: Dict[str, List[str]] = {
 class SimulationConfig:
     """Configuration for OpenAI chat completions."""
     model: str = "gpt-5-nano"  # supports max_completion_tokens
-    temperature: float = 0.7
+    temperature: float = 1.0  # gpt-5-nano/mini require default temperature
     max_tokens: int = 220  # For legacy models; see _chat for overrides
     retries: int = 3
     backoff_seconds: float = 2.0
@@ -128,6 +128,9 @@ class SingleTurnSimulator:
                     kwargs["max_completion_tokens"] = self.config.max_tokens
                 else:
                     kwargs["max_tokens"] = self.config.max_tokens
+                # Some models (e.g., gpt-5-nano/mini) only support default temperature
+                if "gpt-5" in self.config.model:
+                    kwargs["temperature"] = 1.0
                 resp = self._client.chat.completions.create(
                     **kwargs,
                 )
