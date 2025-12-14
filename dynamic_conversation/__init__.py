@@ -6,6 +6,7 @@ from .response_strategy import (
     ResponseStrategy,
     STRATEGY_PROMPT_TEMPLATES,
     build_strategy_prompt,
+    EmotionStrategyAnalyzer,
 )
 from .simulation import (
     SingleTurnSimulator,
@@ -19,6 +20,7 @@ __all__ = [
     "ResponseStrategy",
     "STRATEGY_PROMPT_TEMPLATES",
     "build_strategy_prompt",
+    "EmotionStrategyAnalyzer",
     "SingleTurnSimulator",
     "SimulationConfig",
     "EMOTION_SEED_TEMPLATES",
