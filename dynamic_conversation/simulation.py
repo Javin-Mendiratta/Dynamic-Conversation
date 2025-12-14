@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 import getpass
-import unicodedata
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -67,9 +66,9 @@ EMOTION_SEED_TEMPLATES: Dict[str, List[str]] = {
 @dataclass
 class SimulationConfig:
     """Configuration for OpenAI chat completions."""
-    model: str = "gpt-5-nano"
+    model: str = "gpt-5-nano"  # supports max_completion_tokens
     temperature: float = 0.7
-    max_tokens: int = 220
+    max_tokens: int = 220  # For legacy models; see _chat for overrides
     retries: int = 3
     backoff_seconds: float = 2.0
     seed_prompt_template: str = (
@@ -99,12 +98,6 @@ class SingleTurnSimulator:
         self._prompt_for_key = prompt_for_key
         self.emotion_analyzer = EmotionFlowAnalyzer(model_name=emotion_model, use_gpu=use_gpu)
 
-    @staticmethod
-    def _normalize_text(text: str) -> str:
-        """Normalize text to NFKC and strip characters that could break ASCII-only paths."""
-        normalized = unicodedata.normalize("NFKC", text)
-        return normalized.encode("utf-8", "ignore").decode("utf-8")
-
     def _ensure_client(self) -> None:
         if self._client is not None:
             return
@@ -123,19 +116,22 @@ class SingleTurnSimulator:
 
     def _chat(self, messages: List[Dict[str, str]]) -> str:
         self._ensure_client()
-        safe_messages = [
-            {"role": m["role"], "content": self._normalize_text(m["content"])}
-            for m in messages
-        ]
         for attempt in range(1, self.config.retries + 1):
             try:
+                kwargs = {
+                    "model": self.config.model,
+                    "messages": messages,
+                    "temperature": self.config.temperature,
+                }
+                # Newer models (gpt-4.1 family, gpt-5-nano) may require max_completion_tokens
+                if "5" in self.config.model or "4.1" in self.config.model:
+                    kwargs["max_completion_tokens"] = self.config.max_tokens
+                else:
+                    kwargs["max_tokens"] = self.config.max_tokens
                 resp = self._client.chat.completions.create(
-                    model=self.config.model,
-                    messages=safe_messages,
-                    temperature=self.config.temperature,
-                    max_tokens=self.config.max_tokens,
+                    **kwargs,
                 )
-                return self._normalize_text(resp.choices[0].message.content.strip())
+                return resp.choices[0].message.content.strip()
             except Exception:
                 if attempt >= self.config.retries:
                     raise
@@ -146,7 +142,7 @@ class SingleTurnSimulator:
         target = target_emotion.lower()
         if target not in EMOTION_SEED_TEMPLATES:
             raise ValueError(f"Unsupported emotion '{target_emotion}'. Expected one of {list(EMOTION_SEED_TEMPLATES)}")
-        return self._normalize_text(random.choice(EMOTION_SEED_TEMPLATES[target]))
+        return random.choice(EMOTION_SEED_TEMPLATES[target])
 
     def _seed_with_llm(self, target_emotion: str) -> str:
         """
@@ -163,7 +159,7 @@ class SingleTurnSimulator:
             temperature=self.config.temperature,
             max_tokens=self.config.max_tokens,
         )
-        return self._normalize_text(resp.choices[0].message.content.strip())
+        return resp.choices[0].message.content.strip()
 
     def simulate(
         self,
