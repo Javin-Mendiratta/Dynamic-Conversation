@@ -235,7 +235,7 @@ class SingleTurnSimulator:
 
         if save_csv:
             Path(save_csv).parent.mkdir(parents=True, exist_ok=True)
-            df.to_csv(save_csv, index=False)
+            df.to_csv(save_csv, index=False, encoding="utf-8")
 
         if save_heatmap:
             self._plot_heatmap(df, save_path=save_heatmap)
