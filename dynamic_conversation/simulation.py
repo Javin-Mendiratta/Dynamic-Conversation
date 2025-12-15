@@ -368,6 +368,30 @@ class SingleTurnSimulator:
 
         return success_df
 
+    def _plot_heatmap(self, df: pd.DataFrame, save_path: Path) -> None:
+        pivot = (
+            df.groupby(["intended_emotion", "strategy", "followup_emotion"])
+            .size()
+            .reset_index(name="count")
+        )
+        heat_data = pivot.pivot_table(
+            index=["intended_emotion", "strategy"],
+            columns="followup_emotion",
+            values="count",
+            fill_value=0,
+        )
+
+        plt.figure(figsize=(10, 6))
+        sns.heatmap(heat_data, annot=True, fmt=".0f", cmap="Blues")
+        plt.title("Emotion shift counts by initial emotion and strategy")
+        plt.ylabel("Initial emotion / Strategy")
+        plt.xlabel("Post-strategy emotion")
+
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close()
+
 
 def build_esconv_seed_bank(
     esconv_dataset,
@@ -418,31 +442,6 @@ def build_esconv_seed_bank(
                 remaining.discard(label)
 
     return bank
-
-    def _plot_heatmap(self, df: pd.DataFrame, save_path: Path) -> None:
-        pivot = (
-            df.groupby(["intended_emotion", "strategy", "followup_emotion"])
-            .size()
-            .reset_index(name="count")
-        )
-        heat_data = pivot.pivot_table(
-            index=["intended_emotion", "strategy"],
-            columns="followup_emotion",
-            values="count",
-            fill_value=0,
-        )
-
-        plt.figure(figsize=(10, 6))
-        sns.heatmap(heat_data, annot=True, fmt=".0f", cmap="Blues")
-        plt.title("Emotion shift counts by initial emotion and strategy")
-        plt.ylabel("Initial emotion / Strategy")
-        plt.xlabel("Post-strategy emotion")
-
-        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-        plt.tight_layout()
-        plt.savefig(save_path)
-        plt.close()
-
 
 def _wilson_ci(successes: int, total: int, confidence: float = 0.95) -> (float, float):
     """
