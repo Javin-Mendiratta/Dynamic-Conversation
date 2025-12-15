@@ -38,6 +38,7 @@
 - Neutral-mitigation tweaks (FT-05): follow-up prompts now explicitly preserve the starting emotion and include brevity hints; strategy prompts inherit brevity hints. Seeding can fall back from LLM to synthetic templates or optional ESConv-provided seeds, preventing empty starts.
 - Sanity notebook added (`notebooks/sanity_single_turn.ipynb`) to quickly validate non-empty seeds/replies and log status before larger Phase 3 runs.
 - Seed comparison notebook added (`notebooks/seed_comparison_single_turn.ipynb`) to contrast synthetic vs LLM vs ESConv seeding on a tiny grid.
+- ESConv seeding: `build_esconv_seed_bank` samples the first turn of each ESConv conversation (short opener), classifier-checks it into the DistilRoBERTa label set, and collects per-emotion seed lists. In `SingleTurnSimulator`, seed priority is ESConv (if provided and `use_esconv_seed=True`) → LLM seed (if enabled) → synthetic templates.
 
 ## Approach adjustments (post report guidance)
 - Report requirements add statistical rigor and baselines, so Phase 3 will be extended with:

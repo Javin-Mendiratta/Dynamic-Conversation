@@ -7,6 +7,7 @@
 - Strategy prompts: import via `from dynamic_conversation import ResponseStrategy, build_strategy_prompt, STRATEGY_PROMPT_TEMPLATES` for notebook simulations.
 - Single-turn simulations: import via `from dynamic_conversation import SingleTurnSimulator, SimulationConfig` for Phase 3 runs (OpenAI key required). Defaults: `gpt-4o-mini`, completion cap 400 with auto bump on limit errors, brevity hints, and seed fallbacks (LLM → synthetic; optional ESConv seed bank via `esconv_seeds`). Recommended to bump `max_tokens` (e.g., 800) for sanity runs.
 - Emotion flow notebook: `EmotionFlowAnalyzer` defaults to batch_size=64 for GPU (A100); reduce batch size if you encounter memory pressure.
+- ESConv seeding: use `build_esconv_seed_bank` to pull first-turn openers from ESConv (short, classifier-checked into DistilRoBERTa labels) and pass as `esconv_seeds`; enable with `use_esconv_seed=True` in `run_batch`.
 - Notebook map:
   - `esconv_emotion_flow.ipynb`: Phase 1 exploration using `EmotionFlowAnalyzer` over ESConv; mirrors `main` in `dynamic_conversation/emotion_map.py` (classification, transitions, trajectory scores, plots). GPU-friendly via Colab.
   - `esconv_strategy_exploration.ipynb`: Strategy exploration using `EmotionStrategyAnalyzer` (6-strategy fine-tune + analysis) over ESConv; mirrors `main` in `dynamic_conversation/response_strategy.py`. GPU recommended.
