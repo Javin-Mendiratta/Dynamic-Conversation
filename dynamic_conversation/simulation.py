@@ -74,7 +74,7 @@ BASELINE_SUPPORTIVE_PROMPT = (
 @dataclass
 class SimulationConfig:
     """Configuration for OpenAI chat completions."""
-    model: str = "gpt-5-nano"  # supports max_completion_tokens
+    model: str = "gpt-4o-mini"  # reliable for short completions, supports max_completion_tokens
     temperature: float = 1.0  # gpt-5-nano/mini require default temperature
     max_tokens: int = 400  # For legacy models; see _chat for overrides
     retries: int = 3
@@ -365,6 +365,57 @@ class SingleTurnSimulator:
                     f.write(f"{row.get('intended_emotion')} / {row.get('strategy')}: {row.get('status')}\n")
 
         return success_df
+
+
+def build_esconv_seed_bank(
+    esconv_dataset,
+    emotions: List[str],
+    per_emotion: int = 8,
+    max_chars: int = 200,
+    use_gpu: bool = False,
+    analyzer: Optional[EmotionFlowAnalyzer] = None,
+) -> Dict[str, List[str]]:
+    """
+    Build a small seed bank from ESConv conversation starts per target emotion.
+
+    Args:
+        esconv_dataset: HuggingFace dataset with ESConv splits.
+        emotions: Target emotion labels to collect (e.g., ['anger', 'joy']).
+        per_emotion: Max seeds to keep per emotion.
+        max_chars: Skip turns longer than this many characters.
+        use_gpu: Whether to load EmotionFlowAnalyzer with GPU.
+        analyzer: Optional preloaded EmotionFlowAnalyzer to reuse the classifier.
+
+    Returns:
+        Dict emotion -> list of seed utterances.
+    """
+    analyzer = analyzer or EmotionFlowAnalyzer(use_gpu=use_gpu)
+    bank: Dict[str, List[str]] = {e: [] for e in emotions}
+    remaining = set(emotions)
+
+    data = esconv_dataset["train"]
+    for idx in range(len(data)):
+        if not remaining:
+            break
+        try:
+            conv = json.loads(data[idx]["text"])
+        except Exception:
+            continue
+        dialogue = conv.get("dialog") or []
+        if not dialogue:
+            continue
+        first_turn = dialogue[0]
+        text = (first_turn.get("text") or "").strip()
+        if not text or len(text) > max_chars:
+            continue
+        res = analyzer.classify_utterance(text)
+        label = res["primary_emotion"]
+        if label in remaining and len(bank[label]) < per_emotion:
+            bank[label].append(text)
+            if len(bank[label]) >= per_emotion:
+                remaining.discard(label)
+
+    return bank
 
     def _plot_heatmap(self, df: pd.DataFrame, save_path: Path) -> None:
         pivot = (

@@ -22,7 +22,12 @@ pip install -e .
 
 ## Quick use (Python)
 ```python
-from dynamic_conversation import EmotionFlowAnalyzer, ResponseStrategy, build_strategy_prompt
+from dynamic_conversation import (
+    EmotionFlowAnalyzer,
+    ResponseStrategy,
+    build_strategy_prompt,
+    build_esconv_seed_bank,
+)
 from datasets import load_dataset
 
 ds = load_dataset("thu-coai/esconv")
@@ -44,7 +49,7 @@ print(prompt)
 
 # Single-turn simulation (requires OPENAI_API_KEY)
 from dynamic_conversation import SingleTurnSimulator
-sim = SingleTurnSimulator(use_gpu=False)  # prompts for key if env var is unset; default model gpt-5-nano (temp fixed at 1.0)
+sim = SingleTurnSimulator(use_gpu=False)  # prompts for key if env var is unset; default model gpt-4o-mini
 df = sim.run_batch(
     emotions=["anger", "joy"],
     strategies=[ResponseStrategy.VALIDATE, ResponseStrategy.GUIDE],
@@ -54,13 +59,23 @@ df = sim.run_batch(
     save_heatmap=None,
 )
 print(df.head())
+
+# ESConv seeds (optional)
+seed_bank = build_esconv_seed_bank(ds, emotions=["anger", "joy"], per_emotion=6, max_chars=200, use_gpu=False)
+sim_esconv = SingleTurnSimulator(use_gpu=False, esconv_seeds=seed_bank)
+df_esconv = sim_esconv.run_batch(
+    emotions=["anger", "joy"],
+    strategies=[ResponseStrategy.VALIDATE],
+    runs_per_pair=1,
+    use_esconv_seed=True,
+)
 ```
 
 ## Notes
 - GPU is optional; default `use_gpu=True` to auto-detect CUDA if available. Emotion classification batches default to 64 (tuned for an A100); lower if you hit memory limits.
-- OpenAI API key required for simulations (`OPENAI_API_KEY` env variable). Default model: `gpt-5-nano` with temperature fixed at 1.0; tweak via `SimulationConfig`.
+- OpenAI API key required for simulations (`OPENAI_API_KEY` env variable). Default model: `gpt-4o-mini` with temperature fixed at 1.0; tweak via `SimulationConfig`. If you see output-limit errors, increase `max_tokens` (default 400, auto-bumps on limit errors).
 - Simulation outputs default to `results/single_turn_simulation.csv` and `results/single_turn_heatmap.png` (configurable in `run_batch`).
-- Seeding: by default uses fixed synthetic templates per emotion; set `use_llm_seed=True` to let agent A generate its own seed utterance via the LLM for more variety.
+- Seeding: by default uses fixed synthetic templates per emotion; set `use_llm_seed=True` to let agent A generate its own seed via the LLM; set `use_esconv_seed=True` with an `esconv_seeds` bank to use ESConv snippets.
 
 ## Dev tips
 - Add new modules under `dynamic_conversation/` and export public classes/functions in `dynamic_conversation/__init__.py` to keep imports clean.

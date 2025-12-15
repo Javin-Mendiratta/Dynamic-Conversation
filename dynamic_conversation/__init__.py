@@ -13,6 +13,7 @@ from .simulation import (
     SimulationConfig,
     EMOTION_SEED_TEMPLATES,
     compute_transition_confidence_intervals,
+    build_esconv_seed_bank,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "SimulationConfig",
     "EMOTION_SEED_TEMPLATES",
     "compute_transition_confidence_intervals",
+    "build_esconv_seed_bank",
 ]

@@ -22,6 +22,7 @@
 - Goal: meet report requirements with statistical rigor and manual error analysis. Note: original proposal targeted multi-turn/RL; current focus is single-turn eval + small policy demo if time permits.
 - Tasks:
   - Run Phase 3 with multiple seeds/runs_per_pair; compute CIs/paired tests on shift tables; add neutral/no-strategy baseline.
+  - Compare seeding modes (synthetic vs LLM vs ESConv) and pick the one that yields the most informative/realistic shifts for main runs.
   - Add BERTScore/semantic similarity hooks or small judge/human sampling for strategy adherence/emotional persistence; lightweight safety/toxicity probe.
   - Add second emotion classifier for cross-check or document justification for single-classifier use.
   - Perform manual error analysis on failed/misaligned cases (sampled runs) and summarize patterns.
