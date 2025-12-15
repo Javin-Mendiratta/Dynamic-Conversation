@@ -127,6 +127,7 @@ class SingleTurnSimulator:
 
     def _chat(self, messages: List[Dict[str, str]], allow_empty: bool = False) -> str:
         self._ensure_client()
+        max_tokens = self.config.max_tokens
         for attempt in range(1, self.config.retries + 1):
             try:
                 kwargs = {
@@ -136,9 +137,9 @@ class SingleTurnSimulator:
                 }
                 # Newer models (gpt-4.1 family, gpt-5-nano) may require max_completion_tokens
                 if "5" in self.config.model or "4.1" in self.config.model:
-                    kwargs["max_completion_tokens"] = self.config.max_tokens
+                    kwargs["max_completion_tokens"] = max_tokens
                 else:
-                    kwargs["max_tokens"] = self.config.max_tokens
+                    kwargs["max_tokens"] = max_tokens
                 # Some models (e.g., gpt-5-nano/mini) only support default temperature
                 if "gpt-5" in self.config.model:
                     kwargs["temperature"] = 1.0
@@ -149,9 +150,13 @@ class SingleTurnSimulator:
                 if not allow_empty and not content:
                     raise RuntimeError("Empty completion received")
                 return content
-            except Exception:
+            except Exception as exc:
                 if attempt >= self.config.retries:
                     raise
+                msg = str(exc)
+                # If we hit model output limit, bump max tokens and retry
+                if "max_tokens" in msg or "max_completion_tokens" in msg or "output limit" in msg:
+                    max_tokens = int(max_tokens * 1.5)
                 time.sleep(self.config.backoff_seconds * attempt)
         raise RuntimeError("Chat completion failed after retries.")
 
