@@ -14,12 +14,16 @@ from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.graph_objects as go
 import seaborn as sns
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
 from transformers import pipeline
+
+try:
+    import plotly.graph_objects as go
+except ImportError:  # plotly is only needed for Sankey; allow core flows without it
+    go = None
 
 
 class EmotionFlowAnalyzer:
@@ -283,6 +287,8 @@ class EmotionFlowAnalyzer:
             save_path: Path to save HTML file
             show: Display the figure in supported environments (e.g., notebooks)
         """
+        if go is None:
+            raise ImportError("plotly is required for Sankey diagrams. Install with `pip install plotly`.")  # pragma: no cover
         if conversation_id >= len(self.conversation_emotions):
             print(f"Warning: Conversation ID {conversation_id} not found. Using ID 0.")
             conversation_id = 0
