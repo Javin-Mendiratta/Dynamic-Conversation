@@ -277,6 +277,7 @@ class SingleTurnSimulator:
         style_modifier: Optional[str] = None,
         use_llm_seed: bool = False,
         include_baseline: bool = False,
+        use_esconv_seed: bool = False,
         save_csv: Optional[Path] = Path("results/single_turn_simulation.csv"),
         save_heatmap: Optional[Path] = Path("results/single_turn_heatmap.png"),
         save_metadata: bool = True,
@@ -304,6 +305,7 @@ class SingleTurnSimulator:
                             style_modifier=style_modifier,
                             use_llm_seed=use_llm_seed,
                             use_baseline_strategy=is_baseline,
+                            use_esconv_seed=use_esconv_seed,
                         )
                         result["status"] = "success"
                         records.append(result)
