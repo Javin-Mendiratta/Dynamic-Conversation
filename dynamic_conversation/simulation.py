@@ -161,15 +161,20 @@ class SingleTurnSimulator:
         """
         self._ensure_client()
         prompt = self.config.seed_prompt_template.format(emotion=target_emotion.lower())
-        resp = self._client.chat.completions.create(
-            model=self.config.model,
-            messages=[
+        kwargs = {
+            "model": self.config.model,
+            "messages": [
                 {"role": "system", "content": "You are agent A. Speak in first person, naturally."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-        )
+            "temperature": self.config.temperature,
+        }
+        # gpt-5 / 4.1 models require max_completion_tokens, older models use max_tokens
+        if "5" in self.config.model or "4.1" in self.config.model:
+            kwargs["max_completion_tokens"] = self.config.max_tokens
+        else:
+            kwargs["max_tokens"] = self.config.max_tokens
+        resp = self._client.chat.completions.create(**kwargs)
         return resp.choices[0].message.content.strip()
 
     def simulate(
