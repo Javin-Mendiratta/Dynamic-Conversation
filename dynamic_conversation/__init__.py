@@ -12,6 +12,7 @@ from .simulation import (
     SingleTurnSimulator,
     SimulationConfig,
     EMOTION_SEED_TEMPLATES,
+    compute_transition_confidence_intervals,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "SingleTurnSimulator",
     "SimulationConfig",
     "EMOTION_SEED_TEMPLATES",
+    "compute_transition_confidence_intervals",
 ]

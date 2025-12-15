@@ -1,0 +1,132 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[preprint]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{graphicx}
+\usepackage[normalem]{ulem}
+
+\usepackage{url}
+
+%\aclfinalcopy 
+
+\title{Your project title here}
+
+\author{First Author \\
+  {\tt email@domain} \\\And
+  Second Author \\
+  {\tt email@domain} \\\And
+  Third Author \\
+  {\tt email@domain} \\\And
+  Fourth Author \\
+  {\tt email@domain} \\}
+  
+% \setlength\textwidth{16.0cm}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Report overview}
+This document gives requirements and a possible outline for your final project report.
+
+Some general guidelines: it must be a MINIMUM of 8 pages in this format,
+not including the AI disclosure section, or the automatically generated references section.\footnote{Any obvious ``filler'' material will result in points being deducted. We are looking for 8 solid pages of content!} 
+
+It is due on the last day of finals week, with two items to be submitted:  
+(1) The PDF uploaded to Gradescope, and 
+
+(2) an email with a link to code, such as a public Github repository or uploaded zip file, or attach a zip file to the email (if less than 10 MB).\footnote{Please do not include large data files in this zip! Only code that YOU wrote should be uploaded. It should have a detailed README and be reasonably clean and commented. If you're submitting a Github link, make sure it goes to a \emph{public} repository that we can access.}
+If it is a URL, also include it in your report.\footnote{For example as a footnote, something like: The code for this project is available at: \url{http://yourlink.com}}
+
+This report should obviously be more detailed than your proposal report.  It should contain multiple tables and/or plots that convey numerical information – for example, statistics about your data or annotations, accuracy or other results of running an algorithm on the data, or something else. 
+
+Please use this LaTeX template to write your report with Overleaf or your favorite LaTeX editor.\footnote{The style file comes from this ACL repository, which has some additional notes on mechanics: \url{https://github.com/acl-org/acl-style-files}}
+Note that some sections may not be relevant for your project; feel free to delete them, or add other sections or reorganize them as you wish! If you're unsure whether to include something or not, please contact the instructors.
+
+
+\section{Problem statement}
+Summarize the goal of your project and its motivations in this section.
+
+
+\section{What you proposed vs. what you accomplished}
+Provide a short list of things you proposed to do (in the project proposal) and whether you actually completed these things or not. If you failed to do something, \emph{briefly} explain why! If you made significant changes to your project since the proposal, also note that here. You can go into more detail later in the report.  This section is more of a summary and should be no longer than a column, as in the example list below:
+
+\begin{itemize}
+\item Collect and preprocess dataset
+\item Build and train (specific baseline model) on collected dataset and examine its performance
+\item Build and train fancy model and examine its performance
+\item \emph{Make fancy model perform better than baseline model}: We failed to do this because [reason]
+\item Perform in-depth error analysis to figure out what kinds of examples our approach struggles with
+\end{itemize}
+
+
+\section{Related work}
+Provide a survey of prior work that is related to your project. \textbf{Make sure to cite AT LEAST 6 papers in this section.} You don't have to describe all of them in detail, but for a couple of the most related papers, briefly describe what they did and how/why your approach differs. For a good example of a related work section, see Section 3 of \citet{strubell-etal-2018-linguistically}, which tells a story about the history of semantic role labeling and how particular papers relate to the proposed work. Your related work section should not read like a list of paper descriptions (if it does, you will lose points) but rather form a cohesive section. To  look  for  relevant  papers,  check  out  the  top NLP  conferences  (e.g.,  ACL,  EMNLP, NAACL, TACL). Make sure to properly cite them. You can cite a paper parenthetically like this~\citep{andrew2007scalable} or use the citation as a proper noun, as in ``\citet{borsch2011} show that...'' If you're not familiar with LaTeX, you’ll have to add entries to yourbib.bib to get them to show up when you cite them. Your related work section should be no longer than 1.5 columns in this format!
+
+\section{Your dataset}
+The most important rule of NLP: look at your data! Provide us with examples from your dataset, and describe your task in a coherent manner. Explain what properties of the data make your task challenging. Report the source of the dataset, its basic statistics (e.g., size, number of words/sentences/documents) and some other statistics that are specifically relevant to your task. Show a couple input / output pairs to make it clear what you're doing (but don't use up too much space in doing so!).
+
+\subsection{Data preprocessing}
+If you did any preprocessing, explain what you did (and why) here! 
+
+\subsection{Data annotation}
+If your project involves annotation, you may have started a pilot annotation experiment, annotating a few dozen or few hundred examples. What major issues have come up? Do you and your project partners agree or disagree on examples? Report interannotator agreement if applicable.
+
+\section{Baselines}
+What are your baselines, how do they work, and what are their results? Why did you choose these baselines over other models? Additionally, explain how each one works, and list the hyperparameters you are using and how you tuned them! Describe your train/validation/test split. If you have tuned any hyperparameters on your test set, expect a major point deduction! 
+
+\section{Your approach}
+What is your approach and how does it work? Do you expect it to fail in similar ways to your baselines? Did you manage to complete a working implementation? What libraries did you use to accomplish this? Did you rely on help from any existing implementations? If so, please link to them here. \textbf{What models did you implement yourself, and what files in your uploaded code are associated with these models?} What kind of computers are you running your experiments on? Are there any issues that you could not solve? If you used Colab, were there any Colab-specific hacks you needed to make to train your model? What results did your model achieve, and how do these results compare to your baselines? Be specific!!! Note that there could be many other important details specific to your approach that you should include here if appropriate.
+
+\section{Results}
+Description of the results and experimental analyses, including quantitative results.
+
+For quantitative results. you are expected to use at least some statistical significance analysis---either confidence intervals, or paired comparisons, or both; see the Week 13 lecture and readings. If you're using simple accuracy, we suggest binomial confidence intervals.  If you're using something numerical (e.g. averaged Likert scores), we suggest t-tests (if you're familiar with them; we did not cover in class).
+If you're using something more complicated, or want a method that can apply to anything, we suggest the bootstrap.
+
+\section{Error analysis}
+This is a continuation of presenting your results, with deeper, often with manual, data analysis.
+
+What kinds of inputs do your baselines fail at? What about your approach? Are there any semantic or syntactic commonalities between these difficult examples? \textbf{We would like to see a manual error analysis (e.g., annotate 100 failed examples for various properties, and then discuss the results and hypothesize about why they occur).} 
+
+\section{Contributions of group members}
+List what each member of the group contributed to this project here. For example: 
+\begin{itemize}
+    \item member 1: did data collection / processing and lots of writing
+    \item member 2: built and trained models
+    \item member 3: error analysis and annotations
+\end{itemize}
+
+\textbf{If you would like to privately share more information about the workload division that may have caused extenuating circumstances (e.g., a member of the group was unreachable and did no work), please send a detailed note to the instructors GMail account. We will take these notes into account when assigning individual grades.}
+
+\section{Conclusion}
+You've now gotten your hands dirty with NLP tools and techniques! What takeaways do you have about your project? What proved surprisingly difficult to accomplish? Were your surprised by your results? If you could continue working on your project in the future, what directions would you pursue?
+
+\section{AI Disclosure}
+\begin{itemize}
+    \item Did you use any AI assistance to complete this proposal? If so, please also specify what AI you used.
+    \begin{itemize}
+        \item your response here
+    \end{itemize}
+\end{itemize}
+
+\noindent\textit{If you answered yes to the above question, please complete the following as well:}
+
+\begin{itemize}
+    \item  If you used a large language model to assist you, please paste *all* of the prompts that you used below. Add a separate bullet for each prompt, and specify which part of the proposal is associated with which prompt.
+    \begin{itemize}
+        \item your response here
+    \end{itemize}
+    \item \textbf{Free response:} For each section or paragraph for which you used assistance, describe your overall experience with the AI. How helpful was it? Did it just directly give you a good output, or did you have to edit it? Was its output ever obviously wrong or irrelevant? Did you use it to generate new text, check your own ideas, or rewrite text?
+    \begin{itemize}
+        \item your response here
+    \end{itemize}
+\end{itemize}
+
+
+\bibliographystyle{apalike}
+\footnotesize
+\bibliography{yourbib}
+
+
+\end{document}

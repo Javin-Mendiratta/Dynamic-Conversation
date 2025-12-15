@@ -31,9 +31,17 @@
   - `dynamic_conversation/simulation.py` with `SingleTurnSimulator` and `SimulationConfig`; uses OpenAI Chat Completions (configurable model/temperature/max tokens, retries/backoff, requires `OPENAI_API_KEY`). Default model: `gpt-5-nano`.
   - Synthetic seeding aligned to the seven DistilRoBERTa labels (`EMOTION_SEED_TEMPLATES`); context reset each trial.
   - Optional LLM-generated seeds via `use_llm_seed=True` for more variety (still classifier-checked).
-  - Uses `build_strategy_prompt` for agent B responses; agent A follow-up generated separately.
-  - Emotion verification before/after with `EmotionFlowAnalyzer` (DistilRoBERTa); aggregates to CSV + heatmap in `results/`.
+  - Uses `build_strategy_prompt` for agent B responses; agent A follow-up generated separately. Optional neutral/no-strategy baseline path and metadata logging in batch runs.
+  - Emotion verification before/after with `EmotionFlowAnalyzer` (DistilRoBERTa); aggregates to CSV + heatmap in `results/`. Helper `compute_transition_confidence_intervals` provides Wilson CIs for shift summaries.
   - Notebook-friendly API exported via `dynamic_conversation/__init__.py`; demo wiring in `notebooks/single_turn_simulation.ipynb` (runs small batches, writes `results/demo_single_turn.csv` and heatmap).
+
+## Approach adjustments (post report guidance)
+- Report requirements add statistical rigor and baselines, so Phase 3 will be extended with:
+  - A neutral/no-strategy baseline for comparison against strategy prompts.
+  - Multiple seeds/runs with confidence intervals or paired tests on emotion-shift metrics.
+  - Logging of run configs/seeds for reproducibility.
+- To satisfy dataset/error analysis sections, plan includes manual inspection of failures, dataset stats/examples, and notebook README updates.
+- Neutral-collapse behavior observed in early runs motivates prompt tweaks (emotional inertia/intensity) and potential second emotion-classifier cross-checks to improve realism.
 
 ## Repo/org practices
 - Library code in `dynamic_conversation/`; experiments and results generation in `notebooks/` (import package functions, avoid duplicating logic).

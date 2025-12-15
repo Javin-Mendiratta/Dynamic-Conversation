@@ -15,8 +15,10 @@ import random
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import getpass
+import json
+import math
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -61,6 +63,12 @@ EMOTION_SEED_TEMPLATES: Dict[str, List[str]] = {
         "Wow, that was unexpected and surprising."
     ],
 }
+
+# Generic supportive prompt used for the baseline (no explicit strategy)
+BASELINE_SUPPORTIVE_PROMPT = (
+    "Respond supportively and succinctly to the partner's message. "
+    "Show understanding without applying a specific strategy or changing their topic."
+)
 
 
 @dataclass
@@ -167,9 +175,10 @@ class SingleTurnSimulator:
     def simulate(
         self,
         target_emotion: str,
-        strategy: ResponseStrategy,
+        strategy: Optional[ResponseStrategy],
         style_modifier: Optional[str] = None,
         use_llm_seed: bool = False,
+        use_baseline_strategy: bool = False,
     ) -> Dict:
         """
         Run a single simulation trial.
@@ -180,12 +189,22 @@ class SingleTurnSimulator:
         seed_text = self._seed_with_llm(target_emotion) if use_llm_seed else self._seed_utterance(target_emotion)
         seed_classification = self.emotion_analyzer.classify_utterance(seed_text)
 
-        strategy_prompt = build_strategy_prompt(
-            strategy=strategy,
-            partner_message=seed_text,
-            conversation_context=[f"usr: {seed_text}"],
-            style_modifier=style_modifier,
-        )
+        if use_baseline_strategy:
+            strategy_prompt = (
+                f"{BASELINE_SUPPORTIVE_PROMPT}\nPartner said: \"{seed_text}\""
+                + (f"\nStyle: {style_modifier}" if style_modifier else "")
+            )
+            strategy_label = "baseline"
+        else:
+            if strategy is None:
+                raise ValueError("strategy must be provided when not using the baseline path.")
+            strategy_prompt = build_strategy_prompt(
+                strategy=strategy,
+                partner_message=seed_text,
+                conversation_context=[f"usr: {seed_text}"],
+                style_modifier=style_modifier,
+            )
+            strategy_label = strategy.value
         strategy_reply = self._chat([
             {"role": "system", "content": "You are agent B, a supportive responder."},
             {"role": "user", "content": strategy_prompt},
@@ -208,7 +227,7 @@ class SingleTurnSimulator:
             "seed_text": seed_text,
             "seed_emotion_detected": seed_classification["primary_emotion"],
             "seed_confidence": seed_classification["confidence"],
-            "strategy": strategy.value,
+            "strategy": strategy_label,
             "style_modifier": style_modifier or "",
             "strategy_reply": strategy_reply,
             "followup_reply": followup_reply,
@@ -223,21 +242,29 @@ class SingleTurnSimulator:
         runs_per_pair: int = 1,
         style_modifier: Optional[str] = None,
         use_llm_seed: bool = False,
+        include_baseline: bool = False,
         save_csv: Optional[Path] = Path("results/single_turn_simulation.csv"),
         save_heatmap: Optional[Path] = Path("results/single_turn_heatmap.png"),
+        save_metadata: bool = True,
     ) -> pd.DataFrame:
         """
         Run multiple simulations and optionally save CSV/heatmap.
         """
         records: List[Dict] = []
+        strategy_items: List[Union[ResponseStrategy, str]] = list(strategies)
+        if include_baseline:
+            strategy_items.append("baseline")
+
         for emotion in emotions:
-            for strategy in strategies:
+            for strategy in strategy_items:
                 for _ in range(runs_per_pair):
+                    is_baseline = strategy == "baseline"
                     result = self.simulate(
                         emotion,
-                        strategy,
+                        strategy if not is_baseline else None,
                         style_modifier=style_modifier,
                         use_llm_seed=use_llm_seed,
+                        use_baseline_strategy=is_baseline,
                     )
                     records.append(result)
 
@@ -246,6 +273,27 @@ class SingleTurnSimulator:
         if save_csv:
             Path(save_csv).parent.mkdir(parents=True, exist_ok=True)
             df.to_csv(save_csv, index=False, encoding="utf-8")
+
+        if save_metadata and save_csv:
+            metadata = {
+                "emotions": emotions,
+                "strategies": [s if isinstance(s, str) else s.value for s in strategy_items],
+                "runs_per_pair": runs_per_pair,
+                "style_modifier": style_modifier or "",
+                "use_llm_seed": use_llm_seed,
+                "include_baseline": include_baseline,
+                "config": {
+                    "model": self.config.model,
+                    "temperature": self.config.temperature,
+                    "max_tokens": self.config.max_tokens,
+                    "retries": self.config.retries,
+                    "backoff_seconds": self.config.backoff_seconds,
+                },
+            }
+            meta_path = save_csv.with_suffix(".meta.json")
+            Path(meta_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(metadata, f, indent=2)
 
         if save_heatmap:
             self._plot_heatmap(df, save_path=save_heatmap)
@@ -275,3 +323,61 @@ class SingleTurnSimulator:
         plt.tight_layout()
         plt.savefig(save_path)
         plt.close()
+
+
+def _wilson_ci(successes: int, total: int, confidence: float = 0.95) -> (float, float):
+    """
+    Compute Wilson score interval for a binomial proportion.
+    """
+    if total == 0:
+        return (0.0, 0.0)
+    # Approximate z for common confidence levels
+    if confidence == 0.95:
+        z = 1.96
+    elif confidence == 0.90:
+        z = 1.64
+    elif confidence == 0.99:
+        z = 2.58
+    else:
+        # Default fallback to 95% if unspecified
+        z = 1.96
+    phat = successes / total
+    denom = 1 + (z**2) / total
+    center = phat + (z**2) / (2 * total)
+    margin = z * math.sqrt((phat * (1 - phat) + (z**2) / (4 * total)) / total)
+    return ((center - margin) / denom, (center + margin) / denom)
+
+
+def compute_transition_confidence_intervals(
+    df: pd.DataFrame,
+    confidence: float = 0.95,
+    group_cols: Optional[List[str]] = None,
+    emotion_col: str = "followup_emotion",
+) -> pd.DataFrame:
+    """
+    Compute Wilson confidence intervals for emotion distributions per group.
+
+    Returns a DataFrame with columns: group_cols + target_emotion, count, total, proportion, ci_low, ci_high.
+    """
+    group_cols = group_cols or ["intended_emotion", "strategy"]
+    records: List[Dict] = []
+
+    for keys, group in df.groupby(group_cols):
+        total = len(group)
+        counts = group[emotion_col].value_counts()
+        key_dict = dict(zip(group_cols, keys if isinstance(keys, tuple) else (keys,)))
+        for target_emotion, count in counts.items():
+            ci_low, ci_high = _wilson_ci(count, total, confidence=confidence)
+            records.append(
+                {
+                    **key_dict,
+                    "target_emotion": target_emotion,
+                    "count": int(count),
+                    "total": int(total),
+                    "proportion": count / total if total else 0.0,
+                    "ci_low": ci_low,
+                    "ci_high": ci_high,
+                }
+            )
+
+    return pd.DataFrame(records)
