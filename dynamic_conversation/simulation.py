@@ -76,13 +76,14 @@ class SimulationConfig:
     """Configuration for OpenAI chat completions."""
     model: str = "gpt-5-nano"  # supports max_completion_tokens
     temperature: float = 1.0  # gpt-5-nano/mini require default temperature
-    max_tokens: int = 220  # For legacy models; see _chat for overrides
+    max_tokens: int = 400  # For legacy models; see _chat for overrides
     retries: int = 3
     backoff_seconds: float = 2.0
     seed_prompt_template: str = (
         "You are agent A. Produce one short, natural utterance (1-2 sentences) "
         "that clearly expresses the emotion: {emotion}. Do not add extra explanation."
     )
+    brevity_hint: str = "Reply in 1-3 sentences."
 
 
 class SingleTurnSimulator:
@@ -99,12 +100,14 @@ class SingleTurnSimulator:
         use_gpu: bool = False,
         config: Optional[SimulationConfig] = None,
         prompt_for_key: bool = True,
+        esconv_seeds: Optional[Dict[str, List[str]]] = None,
     ):
         self.config = config or SimulationConfig()
         self._client = None
         self._openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self._prompt_for_key = prompt_for_key
         self.emotion_analyzer = EmotionFlowAnalyzer(model_name=emotion_model, use_gpu=use_gpu)
+        self.esconv_seeds = esconv_seeds or {}
 
     def _ensure_client(self) -> None:
         if self._client is not None:
@@ -122,7 +125,7 @@ class SingleTurnSimulator:
             raise ValueError("OPENAI_API_KEY is required to run simulations.")
         self._client = OpenAI(api_key=self._openai_api_key)
 
-    def _chat(self, messages: List[Dict[str, str]]) -> str:
+    def _chat(self, messages: List[Dict[str, str]], allow_empty: bool = False) -> str:
         self._ensure_client()
         for attempt in range(1, self.config.retries + 1):
             try:
@@ -142,7 +145,10 @@ class SingleTurnSimulator:
                 resp = self._client.chat.completions.create(
                     **kwargs,
                 )
-                return resp.choices[0].message.content.strip()
+                content = (resp.choices[0].message.content or "").strip()
+                if not allow_empty and not content:
+                    raise RuntimeError("Empty completion received")
+                return content
             except Exception:
                 if attempt >= self.config.retries:
                     raise
@@ -155,27 +161,22 @@ class SingleTurnSimulator:
             raise ValueError(f"Unsupported emotion '{target_emotion}'. Expected one of {list(EMOTION_SEED_TEMPLATES)}")
         return random.choice(EMOTION_SEED_TEMPLATES[target])
 
+    def _seed_from_esconv(self, target_emotion: str) -> Optional[str]:
+        """Return a seed from a prebuilt ESConv seed bank if available."""
+        seeds = self.esconv_seeds.get(target_emotion.lower()) or []
+        return random.choice(seeds) if seeds else None
+
     def _seed_with_llm(self, target_emotion: str) -> str:
         """
         Generate a seed utterance via LLM for additional variety.
         """
-        self._ensure_client()
         prompt = self.config.seed_prompt_template.format(emotion=target_emotion.lower())
-        kwargs = {
-            "model": self.config.model,
-            "messages": [
+        return self._chat(
+            [
                 {"role": "system", "content": "You are agent A. Speak in first person, naturally."},
                 {"role": "user", "content": prompt},
-            ],
-            "temperature": self.config.temperature,
-        }
-        # gpt-5 / 4.1 models require max_completion_tokens, older models use max_tokens
-        if "5" in self.config.model or "4.1" in self.config.model:
-            kwargs["max_completion_tokens"] = self.config.max_tokens
-        else:
-            kwargs["max_tokens"] = self.config.max_tokens
-        resp = self._client.chat.completions.create(**kwargs)
-        return resp.choices[0].message.content.strip()
+            ]
+        )
 
     def simulate(
         self,
@@ -184,6 +185,7 @@ class SingleTurnSimulator:
         style_modifier: Optional[str] = None,
         use_llm_seed: bool = False,
         use_baseline_strategy: bool = False,
+        use_esconv_seed: bool = False,
     ) -> Dict:
         """
         Run a single simulation trial.
@@ -191,8 +193,21 @@ class SingleTurnSimulator:
         Returns:
             Dict with seed text, strategy response, follow-up, and classified emotions.
         """
-        seed_text = self._seed_with_llm(target_emotion) if use_llm_seed else self._seed_utterance(target_emotion)
+        seed_text = ""
+        # seed priority: explicit ESConv toggle > LLM seed > synthetic
+        if use_esconv_seed:
+            seed_text = self._seed_from_esconv(target_emotion) or ""
+        if use_llm_seed and not seed_text:
+            try:
+                seed_text = self._seed_with_llm(target_emotion)
+            except Exception:
+                seed_text = ""
+        if not seed_text:
+            seed_text = self._seed_utterance(target_emotion)
+
         seed_classification = self.emotion_analyzer.classify_utterance(seed_text)
+        if not seed_text.strip():
+            raise RuntimeError("Empty seed text generated")
 
         if use_baseline_strategy:
             strategy_prompt = (
@@ -203,21 +218,28 @@ class SingleTurnSimulator:
         else:
             if strategy is None:
                 raise ValueError("strategy must be provided when not using the baseline path.")
+            strategy_style = style_modifier or ""
+            if self.config.brevity_hint:
+                strategy_style = f"{strategy_style} {self.config.brevity_hint}".strip()
             strategy_prompt = build_strategy_prompt(
                 strategy=strategy,
                 partner_message=seed_text,
                 conversation_context=[f"usr: {seed_text}"],
-                style_modifier=style_modifier,
+                style_modifier=strategy_style,
             )
             strategy_label = strategy.value
         strategy_reply = self._chat([
             {"role": "system", "content": "You are agent B, a supportive responder."},
             {"role": "user", "content": strategy_prompt},
         ])
+        if not strategy_reply.strip():
+            raise RuntimeError("Empty strategy reply generated")
 
         followup_prompt = (
             "You are the original speaker (agent A). Stay consistent with your initial tone and respond"
-            " naturally to the last reply in 1-3 sentences."
+            " naturally to the last reply."
+            f" Preserve the original emotion {target_emotion.lower()} unless it truly shifts in context."
+            f" {self.config.brevity_hint}"
             f"\nYour earlier message: \"{seed_text}\""
             f"\nTheir reply: \"{strategy_reply}\""
         )
@@ -225,6 +247,8 @@ class SingleTurnSimulator:
             {"role": "system", "content": "You are agent A. Speak authentically and briefly."},
             {"role": "user", "content": followup_prompt},
         ])
+        if not followup_reply.strip():
+            raise RuntimeError("Empty follow-up reply generated")
         followup_classification = self.emotion_analyzer.classify_utterance(followup_reply)
 
         return {
@@ -268,20 +292,37 @@ class SingleTurnSimulator:
             for strategy in strategy_items:
                 for _ in range(runs_per_pair):
                     is_baseline = strategy == "baseline"
-                    result = self.simulate(
-                        emotion,
-                        strategy if not is_baseline else None,
-                        style_modifier=style_modifier,
-                        use_llm_seed=use_llm_seed,
-                        use_baseline_strategy=is_baseline,
-                    )
-                    records.append(result)
+                    try:
+                        result = self.simulate(
+                            emotion,
+                            strategy if not is_baseline else None,
+                            style_modifier=style_modifier,
+                            use_llm_seed=use_llm_seed,
+                            use_baseline_strategy=is_baseline,
+                        )
+                        result["status"] = "success"
+                        records.append(result)
+                    except Exception as exc:  # pragma: no cover - defensive logging
+                        records.append({
+                            "intended_emotion": emotion,
+                            "strategy": strategy if not is_baseline else "baseline",
+                            "seed_text": "",
+                            "seed_emotion_detected": "",
+                            "seed_confidence": 0.0,
+                            "style_modifier": style_modifier or "",
+                            "strategy_reply": "",
+                            "followup_reply": "",
+                            "followup_emotion": "",
+                            "followup_confidence": 0.0,
+                            "status": f"failed: {exc}",
+                        })
 
         df = pd.DataFrame(records)
+        success_df = df[df["status"] == "success"].copy()
 
         if save_csv:
             Path(save_csv).parent.mkdir(parents=True, exist_ok=True)
-            df.to_csv(save_csv, index=False, encoding="utf-8")
+            success_df.drop(columns=["status"], errors="ignore").to_csv(save_csv, index=False, encoding="utf-8")
 
         if save_metadata and save_csv:
             metadata = {
@@ -298,6 +339,8 @@ class SingleTurnSimulator:
                     "retries": self.config.retries,
                     "backoff_seconds": self.config.backoff_seconds,
                 },
+                "success_count": int((df["status"] == "success").sum()),
+                "failure_count": int((df["status"] != "success").sum()),
             }
             meta_path = save_csv.with_suffix(".meta.json")
             Path(meta_path).parent.mkdir(parents=True, exist_ok=True)
@@ -305,9 +348,18 @@ class SingleTurnSimulator:
                 json.dump(metadata, f, indent=2)
 
         if save_heatmap:
-            self._plot_heatmap(df, save_path=save_heatmap)
+            self._plot_heatmap(success_df, save_path=save_heatmap)
 
-        return df
+        # Write a simple log with failures if any
+        if save_csv:
+            log_path = save_csv.with_suffix(".log")
+            with open(log_path, "w", encoding="utf-8") as f:
+                for _, row in df.iterrows():
+                    if row.get("status") == "success":
+                        continue
+                    f.write(f"{row.get('intended_emotion')} / {row.get('strategy')}: {row.get('status')}\n")
+
+        return success_df
 
     def _plot_heatmap(self, df: pd.DataFrame, save_path: Path) -> None:
         pivot = (

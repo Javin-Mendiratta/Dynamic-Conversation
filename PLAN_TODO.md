@@ -1,5 +1,9 @@
 # TODOs by Phase (notebook-first; ESConv for Phase 1)
 
+## Phase 3 stabilization (completed)
+- Goal: harden single-turn simulations so outputs are non-empty and emotionally faithful.
+- Status: DONE via FT-04/FT-05 — higher completion caps, empty-response guards/retries, success/failure logging, emotion-preserving prompts with brevity hints, and seed fallback (LLM → synthetic, optional ESConv seeds). Sanity notebook added.
+
 ## Phase 4: Multi-turn policy simulation (scope adaptable)
 - Goal: roll out short multi-turn dialogues under simple policies to steer toward target emotions; if time is tight, deliver a 3–5 turn demo instead of full 24-turn rollouts.
 - Tasks:
@@ -15,7 +19,7 @@
   - Pick algorithm/lib (pure Python Q vs. lightweight bandit).
 
 ## Evaluation & analysis (report-aligned)
-- Goal: meet report requirements with statistical rigor and manual error analysis.
+- Goal: meet report requirements with statistical rigor and manual error analysis. Note: original proposal targeted multi-turn/RL; current focus is single-turn eval + small policy demo if time permits.
 - Tasks:
   - Run Phase 3 with multiple seeds/runs_per_pair; compute CIs/paired tests on shift tables; add neutral/no-strategy baseline.
   - Add BERTScore/semantic similarity hooks or small judge/human sampling for strategy adherence/emotional persistence; lightweight safety/toxicity probe.

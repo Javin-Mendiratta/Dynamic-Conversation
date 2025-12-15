@@ -1,0 +1,50 @@
+intended_emotion,seed_text,seed_emotion_detected,seed_confidence,strategy,style_modifier,strategy_reply,followup_reply,followup_emotion,followup_confidence
+anger,,neutral,1.0,Validate,,,,neutral,1.0
+anger,,neutral,1.0,Explore,,,Hey there—what would you like to chat about today?,neutral,0.5286221504211426
+anger,,neutral,1.0,Reframe,,,,neutral,1.0
+anger,I'm absolutely furious about this. I can't stand the incompetence anymore.,anger,0.9824185967445374,Affirm,,,,neutral,1.0
+anger,,neutral,1.0,Guide,,,,neutral,1.0
+anger,,neutral,1.0,Normalize,,,"Hey, I’m here. What would you like to talk about or work on today?",neutral,0.5359785556793213
+anger,I can't believe this is happening again. I'm furious and I won't tolerate these excuses anymore.,anger,0.9848061203956604,baseline,,,,neutral,1.0
+disgust,,neutral,1.0,Validate,,,,neutral,1.0
+disgust,,neutral,1.0,Explore,,,,neutral,1.0
+disgust,,neutral,1.0,Reframe,,,"Hey, I’m Agent A. It seems your last message didn’t come through—what would you like to talk about?",neutral,0.5376261472702026
+disgust,,neutral,1.0,Affirm,,,I don’t see the earlier message. What was the last reply about? Share a quick recap and I’ll pick up from there.,neutral,0.7137451171875
+disgust,,neutral,1.0,Guide,,,I’m here. I didn’t catch your last message—could you resend it?,surprise,0.6627408862113953
+disgust,,neutral,1.0,Normalize,,,,neutral,1.0
+disgust,,neutral,1.0,baseline,,"I’m here for you. If you want to share anything, I’m listening.",,neutral,1.0
+fear,I'm scared. My heart is pounding and I can't shake this fear.,fear,0.9944572448730469,Validate,,,,neutral,1.0
+fear,,neutral,1.0,Explore,,,,neutral,1.0
+fear,I'm scared something terrible is going to happen.,fear,0.9918877482414246,Reframe,,,,neutral,1.0
+fear,I'm scared. I can feel my heart pounding and I keep looking over my shoulder.,fear,0.9899625182151794,Affirm,,,,neutral,1.0
+fear,,neutral,1.0,Guide,,,I'm here—looks like I didn't catch your last message. What would you like to talk about or ask?,surprise,0.6430824398994446
+fear,,neutral,1.0,Normalize,,,Hey there—I'm here and ready. What would you like to talk about or work on today?,neutral,0.5868149399757385
+fear,I'm scared. My heart is pounding and every shadow feels like a threat.,fear,0.9938437938690186,baseline,,,,neutral,1.0
+joy,,neutral,1.0,Validate,,,,neutral,1.0
+joy,I'm so happy right now!,joy,0.9684492945671082,Explore,,,,neutral,1.0
+joy,I'm so happy right now. This fills me with joy.,joy,0.9859780073165894,Reframe,,,,neutral,1.0
+joy,I'm so happy right now!,joy,0.9684492945671082,Affirm,,,That's awesome to hear! What's got you feeling so happy?,joy,0.9760506749153137
+joy,I'm so happy right now—this feeling is amazing!,joy,0.8801044225692749,Guide,,,,neutral,1.0
+joy,I'm so happy right now!,joy,0.9684492945671082,Normalize,,,That's wonderful to hear! Do you want to tell me what's making you so happy?,joy,0.9634431600570679
+joy,I'm so happy right now!,joy,0.9684492945671082,baseline,,That's wonderful to hear—I'm really happy for you!,,neutral,1.0
+neutral,I don't have a strong reaction to that.,neutral,0.7871652841567993,Validate,,,,neutral,1.0
+neutral,I’m here to help with whatever you need.,neutral,0.6946179866790771,Explore,,,Hey there—I’m here to help with whatever you need. What would you like to work on today?,neutral,0.43859052658081055
+neutral,I'm not feeling strongly about this.,disgust,0.6672707200050354,Reframe,,,,neutral,1.0
+neutral,I'm here and ready to help with whatever you need.,neutral,0.7075336575508118,Affirm,,,,neutral,1.0
+neutral,I’m here and ready to help with whatever you need.,neutral,0.750234067440033,Guide,,,No problem—what would you like to work on today? Tell me your goal and I’ll help with the next steps.,neutral,0.7838838696479797
+neutral,I'm here to help. What would you like to work on today?,neutral,0.6859175562858582,Normalize,,,Hey there—I'm here whenever you're ready. What would you like to work on today?,neutral,0.6612462401390076
+neutral,I'm here and ready to help with whatever you need.,neutral,0.7075336575508118,baseline,,,"Great—what would you like to work on today? Tell me your goal or the problem you're facing, and we can dive in.",neutral,0.5266669392585754
+sadness,"I feel a heavy ache in my chest, and the days seem dim and empty.",sadness,0.9648450613021851,Validate,,,,neutral,1.0
+sadness,I feel so sad right now.,sadness,0.9848884344100952,Explore,,,,neutral,1.0
+sadness,,neutral,1.0,Reframe,,,I don’t have the last message to react to. Could you share the previous reply so I can respond in the same tone?,neutral,0.9042187333106995
+sadness,,neutral,1.0,Affirm,,,,neutral,1.0
+sadness,I'm feeling really sad right now.,sadness,0.9874821901321411,Guide,,,,neutral,1.0
+sadness,"I'm really sad right now, like a weight sits in my chest and the day feels a little dim.",sadness,0.9853237867355347,Normalize,,,,neutral,1.0
+sadness,I'm feeling really sad today.,sadness,0.987332284450531,baseline,,,,neutral,1.0
+surprise,"Whoa, I didn’t see that coming!",surprise,0.9537984728813171,Validate,,,,neutral,1.0
+surprise,"Whoa, I didn't expect that at all!",surprise,0.9720585942268372,Explore,,,,neutral,1.0
+surprise,"Whoa, I didn't see that coming!",surprise,0.9550126791000366,Reframe,,,,neutral,1.0
+surprise,"Whoa, I didn't see that coming.",surprise,0.9623507261276245,Affirm,,,,neutral,1.0
+surprise,"Wow, I didn't see that coming!",surprise,0.9757020473480225,Guide,,,,neutral,1.0
+surprise,,neutral,1.0,Normalize,,,Hi there—I'm here. What would you like to talk about?,neutral,0.4819943904876709
+surprise,"Whoa, I didn't see that coming!",surprise,0.9550126791000366,baseline,,,,neutral,1.0
