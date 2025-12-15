@@ -39,6 +39,7 @@
 - Sanity notebook added (`notebooks/sanity_single_turn.ipynb`) to quickly validate non-empty seeds/replies and log status before larger Phase 3 runs.
 - Seed comparison notebook added (`notebooks/seed_comparison_single_turn.ipynb`) to contrast synthetic vs LLM vs ESConv seeding on a tiny grid.
 - ESConv seeding: `build_esconv_seed_bank` samples the first turn of each ESConv conversation (short opener), classifier-checks it into the DistilRoBERTa label set, and collects per-emotion seed lists. In `SingleTurnSimulator`, seed priority is ESConv (if provided and `use_esconv_seed=True`) → LLM seed (if enabled) → synthetic templates.
+- Seeding decision: after reviewing the seed comparison grids, single-turn emotional consistency was high across modes. We’ll proceed with LLM seeding for variety and to avoid dependence on prewritten templates or ESConv biases, keeping synthetic/ESConv as baselines.
 
 ## Approach adjustments (post report guidance)
 - Report requirements add statistical rigor and baselines, so Phase 3 will be extended with:

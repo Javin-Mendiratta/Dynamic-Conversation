@@ -76,7 +76,7 @@ df_esconv = sim_esconv.run_batch(
 - OpenAI API key required for simulations (`OPENAI_API_KEY` env variable). Default model: `gpt-4o-mini` with temperature fixed at 1.0; tweak via `SimulationConfig`. If you see output-limit errors, increase `max_tokens` (default 400, auto-bumps on limit errors).
 - Simulation outputs default to `results/single_turn_simulation.csv` and `results/single_turn_heatmap.png` (configurable in `run_batch`).
 - Seeding: by default uses fixed synthetic templates per emotion; set `use_llm_seed=True` to let agent A generate its own seed via the LLM; set `use_esconv_seed=True` with an `esconv_seeds` bank to use ESConv snippets.
-- ESConv seeding details: `build_esconv_seed_bank` pulls the first turn of each ESConv conversation (opener), filters out long/empty text, classifier-checks into the DistilRoBERTa label set, and keeps up to `per_emotion` seeds per requested emotion.
+- Seeding choice: we prefer LLM seeding for main runs (variety, avoids template/ESConv bias); synthetic/ESConv seeding remain available as baselines. ESConv seeding: `build_esconv_seed_bank` pulls the first turn of each ESConv conversation (opener), filters out long/empty text, classifier-checks into the DistilRoBERTa label set, and keeps up to `per_emotion` seeds per requested emotion.
 
 ## Dev tips
 - Add new modules under `dynamic_conversation/` and export public classes/functions in `dynamic_conversation/__init__.py` to keep imports clean.
