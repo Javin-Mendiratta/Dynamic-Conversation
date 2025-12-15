@@ -6,6 +6,7 @@
 - Outputs: avoid committing large outputs; write figures/CSVs/HTML to `results/` with run configs/seeds logged alongside.
 - Strategy prompts: import via `from dynamic_conversation import ResponseStrategy, build_strategy_prompt, STRATEGY_PROMPT_TEMPLATES` for notebook simulations.
 - Single-turn simulations: import via `from dynamic_conversation import SingleTurnSimulator, SimulationConfig` for Phase 3 runs (OpenAI key required).
+- Emotion flow notebook: `EmotionFlowAnalyzer` defaults to batch_size=64 for GPU (A100); reduce batch size if you encounter memory pressure.
 - Notebook map:
   - `esconv_emotion_flow.ipynb`: Phase 1 exploration using `EmotionFlowAnalyzer` over ESConv; mirrors `main` in `dynamic_conversation/emotion_map.py` (classification, transitions, trajectory scores, plots). GPU-friendly via Colab.
   - `esconv_strategy_exploration.ipynb`: Strategy exploration using `EmotionStrategyAnalyzer` (6-strategy fine-tune + analysis) over ESConv; mirrors `main` in `dynamic_conversation/response_strategy.py`. GPU recommended.

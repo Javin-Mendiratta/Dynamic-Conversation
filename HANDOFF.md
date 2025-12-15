@@ -30,7 +30,7 @@ Audience: anyone new picking up the project. This is the source of truth for how
 - Adjust `style_modifier` or replace/extend `EMOTION_SEED_TEMPLATES` if you want richer seeds. Alternatively, set `use_llm_seed=True` in `SingleTurnSimulator` to have agent A generate the initial utterance via the LLM instead of sampling the fixed templates (more variety, still checked by the classifier).
 
 ## Running things
-- Phase 1: open `notebooks/esconv_emotion_flow.ipynb` (adjust `max_conversations`/splits inside).
+- Phase 1: open `notebooks/esconv_emotion_flow.ipynb` (adjust `max_conversations`/splits inside). Emotion classifier batches default to 64 (good for A100); lower batch size if you hit GPU memory limits.
 - Phase 2: open `notebooks/esconv_strategy_exploration.ipynb` (ESConv mapping + classifier/prompt analysis).
 - Phase 3: open `notebooks/single_turn_simulation.ipynb`; set `OPENAI_API_KEY`; tweak `emotions`, `strategies`, `runs_per_pair`, and output paths (default CSV/heatmap under `results/`).
 

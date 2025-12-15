@@ -57,7 +57,7 @@ print(df.head())
 ```
 
 ## Notes
-- GPU is optional; default `use_gpu=True` to auto-detect CUDA if available.
+- GPU is optional; default `use_gpu=True` to auto-detect CUDA if available. Emotion classification batches default to 64 (tuned for an A100); lower if you hit memory limits.
 - OpenAI API key required for simulations (`OPENAI_API_KEY` env variable). Default model: `gpt-5-nano` with temperature fixed at 1.0; tweak via `SimulationConfig`.
 - Simulation outputs default to `results/single_turn_simulation.csv` and `results/single_turn_heatmap.png` (configurable in `run_batch`).
 - Seeding: by default uses fixed synthetic templates per emotion; set `use_llm_seed=True` to let agent A generate its own seed utterance via the LLM for more variety.
