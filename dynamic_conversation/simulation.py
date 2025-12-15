@@ -251,6 +251,10 @@ class SingleTurnSimulator:
         Run multiple simulations and optionally save CSV/heatmap.
         """
         records: List[Dict] = []
+        if isinstance(save_csv, (str, bytes)):
+            save_csv = Path(save_csv)
+        if isinstance(save_heatmap, (str, bytes)):
+            save_heatmap = Path(save_heatmap)
         strategy_items: List[Union[ResponseStrategy, str]] = list(strategies)
         if include_baseline:
             strategy_items.append("baseline")
