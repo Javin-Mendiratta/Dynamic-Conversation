@@ -9,8 +9,8 @@
 - Tasks:
   - Implement a multi-turn rollout helper that takes a policy function (emotion → strategy) and logs turn-level emotions. **Done (MultiTurnRollout + policy exports).**
   - Define two deterministic policies: calming (de-escalate high negatives; steady neutrals) and provocative (push movement/volatility). **Done (calming/provocative/always-validate).**
-  - Run a small grid (e.g., 7 emotions × 2 policies × 3 convos × 5 turns) using `notebooks/multiturn_policy_comparison.ipynb` (writes to `results/multiturn_runs/`).
-  - Summarize final emotion distributions/trajectories; include in report as multi-turn evidence.
+  - Run a small grid (e.g., 7 emotions × 2 policies × 3 convos × 5 turns) using `notebooks/multiturn_policy_comparison.ipynb` (writes to `results/multiturn_runs/`). **Done (runs present).**
+  - Summarize final emotion distributions/trajectories; include in report as multi-turn evidence. **Pending write-up in report.**
 
 ## Phase 5: RL/policy learning (optional)
 - Goal: learn or adaptively choose strategies in an MDP/bandit over emotional states.
@@ -27,8 +27,8 @@
   - Capture CIs from full LLM run (notebooks/single_turn_simulation.ipynb section) and include in report tables.
   - Add BERTScore/semantic similarity hooks or small judge/human sampling for strategy adherence/emotional persistence; lightweight safety/toxicity probe.
   - Add second emotion classifier for cross-check or document justification for single-classifier use.
-  - Perform manual error analysis on failed/misaligned cases (sampled runs) and summarize patterns.
-  - Log run configs/seeds alongside outputs; add brief reproduction notes in `results/`.
+  - Perform manual error analysis on failed/misaligned cases (sampled runs) and summarize patterns. **Done via `notebooks/error_analysis_single_turn.ipynb`; add distilled notes to report.**
+  - Log run configs/seeds alongside outputs; add brief reproduction notes in `results/`. **Meta/logs present; capture in report_notes.md.**
 
 ## Dataset & examples
 - Goal: ensure data section coverage with concrete stats and examples.

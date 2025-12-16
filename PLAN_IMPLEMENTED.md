@@ -55,6 +55,9 @@
   - Deterministic policies exported: `calming_policy` (Validate/Affirm/Normalize mix), `provocative_policy` (Reframe/Guide to induce movement), and `always_validate_policy` baseline.
   - Exported via `dynamic_conversation.__init__` for notebook use; outputs default to `results/multiturn_<policy>.csv` plus a `.summary.csv` and optional heatmap.
   - Notebook `notebooks/multiturn_policy_comparison.ipynb` runs a 5-turn grid (7 emotions × 3 policies × small repeats), saving logs/heatmaps under `results/multiturn_runs/`.
+- Multi-turn run results (LLM seeds, 3 runs/emotion, 5 turns):
+  - Files: `results/multiturn_runs/*_5turn.csv` (per-turn), `*_5turn.summary.csv`, heatmaps per policy, and `multiturn_trajectory_summary.csv` (21×7 table of mean ± 95% CI trajectories with row-wise max highlighted in the notebook).
+  - Finals skew to joy/neutral across policies (calming: 17/21 joy; provocative: 19/21 joy; validate: 19/21 joy). Trajectory scores show dominant pull to starting emotion and joy; differences between policies are directional but CI widths are large due to small n.
 
 ## Approach adjustments (post report guidance)
 - Report requirements add statistical rigor and baselines, so Phase 3 will be extended with:
