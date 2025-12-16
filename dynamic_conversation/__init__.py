@@ -14,6 +14,10 @@ from .simulation import (
     EMOTION_SEED_TEMPLATES,
     compute_transition_confidence_intervals,
     build_esconv_seed_bank,
+    MultiTurnRollout,
+    calming_policy,
+    provocative_policy,
+    always_validate_policy,
 )
 
 __all__ = [
@@ -28,4 +32,8 @@ __all__ = [
     "EMOTION_SEED_TEMPLATES",
     "compute_transition_confidence_intervals",
     "build_esconv_seed_bank",
+    "MultiTurnRollout",
+    "calming_policy",
+    "provocative_policy",
+    "always_validate_policy",
 ]

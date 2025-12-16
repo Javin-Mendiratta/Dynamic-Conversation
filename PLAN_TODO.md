@@ -4,12 +4,13 @@
 - Goal: harden single-turn simulations so outputs are non-empty and emotionally faithful.
 - Status: DONE via FT-04/FT-05 — higher completion caps, empty-response guards/retries, success/failure logging, emotion-preserving prompts with brevity hints, and seed fallback (LLM → synthetic, optional ESConv seeds). Sanity notebook added.
 
-## Phase 4: Multi-turn policy simulation (scope adaptable)
-- Goal: roll out short multi-turn dialogues under simple policies to steer toward target emotions; if time is tight, deliver a 3–5 turn demo instead of full 24-turn rollouts.
+## Phase 4: Multi-turn policy simulation (scope narrowed)
+- Goal: short 3–5 turn demo comparing a calming policy vs a provocative policy to see emotion trajectories beyond single-turn limits (fit in ~20–30 minutes).
 - Tasks:
-  - Implement policy interface (static mappings, greedy from Phase 3 stats) and rollout driver; log trajectories and plots.
-  - Provide notebook-friendly functions; optional CLI only if batch runs needed.
-  - Define target emotions for trajectory reward (neutral, joy, or user input).
+  - Implement a multi-turn rollout helper that takes a policy function (emotion → strategy) and logs turn-level emotions. **Done (MultiTurnRollout + policy exports).**
+  - Define two deterministic policies: calming (de-escalate high negatives; steady neutrals) and provocative (push movement/volatility). **Done (calming/provocative/always-validate).**
+  - Run a small grid (e.g., 7 emotions × 2 policies × 3 convos × 5 turns) using `notebooks/multiturn_policy_comparison.ipynb` (writes to `results/multiturn_runs/`).
+  - Summarize final emotion distributions/trajectories; include in report as multi-turn evidence.
 
 ## Phase 5: RL/policy learning (optional)
 - Goal: learn or adaptively choose strategies in an MDP/bandit over emotional states.

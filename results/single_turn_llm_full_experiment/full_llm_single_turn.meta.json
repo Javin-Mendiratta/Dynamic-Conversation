@@ -17,15 +17,17 @@
     "Normalize",
     "baseline"
   ],
-  "runs_per_pair": 1,
-  "style_modifier": "",
+  "runs_per_pair": 20,
+  "style_modifier": "concise and emotionally attuned",
   "use_llm_seed": true,
   "include_baseline": true,
   "config": {
-    "model": "gpt-5-nano",
+    "model": "gpt-4o-mini",
     "temperature": 1.0,
-    "max_tokens": 400,
+    "max_tokens": 800,
     "retries": 3,
     "backoff_seconds": 2.0
-  }
+  },
+  "success_count": 980,
+  "failure_count": 0
 }

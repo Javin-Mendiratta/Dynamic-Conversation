@@ -14,3 +14,4 @@
   - `single_turn_simulation.ipynb`: Phase 3 demo using `SingleTurnSimulator` with synthetic seeds + strategy prompts; writes CSV/heatmap to `results/`.
   - `sanity_single_turn.ipynb`: quick 2-emotion sanity run to confirm non-empty seeds/replies and check log/meta after robustness fixes.
   - `seed_comparison_single_turn.ipynb`: compares synthetic vs LLM vs ESConv seeding modes on a tiny grid to pick the best seed source for larger runs.
+  - `multiturn_policy_comparison.ipynb`: Phase 4 demo comparing calming vs provocative vs validate policies over 5 turns (small grid) using `MultiTurnRollout`; saves per-turn logs, summaries, and heatmaps to `results/multiturn_runs/`.

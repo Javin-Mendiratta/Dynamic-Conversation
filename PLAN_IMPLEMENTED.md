@@ -28,7 +28,7 @@
 ## Phase 3: Single-turn simulation scaffolding
 - Goal: Measure emotion shifts for (emotion, strategy) pairs via two-agent simulation.
 - Implementation:
-  - `dynamic_conversation/simulation.py` with `SingleTurnSimulator` and `SimulationConfig`; uses OpenAI Chat Completions (configurable model/temperature/max tokens, retries/backoff, requires `OPENAI_API_KEY`). Default model: `gpt-5-nano`.
+  - `dynamic_conversation/simulation.py` with `SingleTurnSimulator` and `SimulationConfig`; uses OpenAI Chat Completions (configurable model/temperature/max tokens, retries/backoff, requires `OPENAI_API_KEY`). Default model: `gpt-4o-mini` with 400 token cap that auto-bumps if the model hits output limits.
   - Synthetic seeding aligned to the seven DistilRoBERTa labels (`EMOTION_SEED_TEMPLATES`); context reset each trial.
   - Optional LLM-generated seeds via `use_llm_seed=True` for more variety (still classifier-checked).
   - Uses `build_strategy_prompt` for agent B responses; agent A follow-up generated separately. Optional neutral/no-strategy baseline path and metadata logging in batch runs.
@@ -40,6 +40,15 @@
 - Seed comparison notebook added (`notebooks/seed_comparison_single_turn.ipynb`) to contrast synthetic vs LLM vs ESConv seeding on a tiny grid.
 - ESConv seeding: `build_esconv_seed_bank` samples the first turn of each ESConv conversation (short opener), classifier-checks it into the DistilRoBERTa label set, and collects per-emotion seed lists. In `SingleTurnSimulator`, seed priority is ESConv (if provided and `use_esconv_seed=True`) → LLM seed (if enabled) → synthetic templates.
 - Seeding decision: after reviewing the seed comparison grids, single-turn emotional consistency was high across modes. We’ll proceed with LLM seeding for variety and to avoid dependence on prewritten templates or ESConv biases, keeping synthetic/ESConv as baselines.
+
+## Phase 4: Multi-turn policy scaffolding (in progress)
+- Goal: enable short 3–5 turn simulations driven by deterministic policies for comparison (calming vs. provocative vs. baseline).
+- Implementation to date (FT-08a):
+  - `MultiTurnRollout` (in `dynamic_conversation/simulation.py`), subclassing the single-turn helper to run policy-driven multi-turn dialogues with LLM or ESConv seeding.
+  - Records per-turn emotions/strategies, saves CSVs and optional heatmaps, and computes trajectory scores toward the intended starting emotion.
+  - Deterministic policies exported: `calming_policy` (Validate/Affirm/Normalize mix), `provocative_policy` (Reframe/Guide to induce movement), and `always_validate_policy` baseline.
+  - Exported via `dynamic_conversation.__init__` for notebook use; outputs default to `results/multiturn_<policy>.csv` plus a `.summary.csv` and optional heatmap.
+  - Notebook `notebooks/multiturn_policy_comparison.ipynb` runs a 5-turn grid (7 emotions × 3 policies × small repeats), saving logs/heatmaps under `results/multiturn_runs/`.
 
 ## Approach adjustments (post report guidance)
 - Report requirements add statistical rigor and baselines, so Phase 3 will be extended with:

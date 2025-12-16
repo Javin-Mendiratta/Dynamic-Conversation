@@ -15,7 +15,7 @@ import random
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 import getpass
 import json
 import math
@@ -99,7 +99,7 @@ class SingleTurnSimulator:
         emotion_model: str = "j-hartmann/emotion-english-distilroberta-base",
         use_gpu: bool = False,
         config: Optional[SimulationConfig] = None,
-        prompt_for_key: bool = True,
+        prompt_for_key: bool = False,
         esconv_seeds: Optional[Dict[str, List[str]]] = None,
     ):
         self.config = config or SimulationConfig()
@@ -160,6 +160,32 @@ class SingleTurnSimulator:
                 time.sleep(self.config.backoff_seconds * attempt)
         raise RuntimeError("Chat completion failed after retries.")
 
+    def _generate_seed_text(
+        self,
+        target_emotion: str,
+        use_llm_seed: bool = False,
+        use_esconv_seed: bool = False,
+    ) -> Tuple[str, Dict]:
+        """
+        Produce a seed utterance using ESConv, LLM, or synthetic fallback and classify it.
+        """
+        seed_text = ""
+        if use_esconv_seed:
+            seed_text = self._seed_from_esconv(target_emotion) or ""
+        if use_llm_seed and not seed_text:
+            try:
+                seed_text = self._seed_with_llm(target_emotion)
+            except Exception:
+                seed_text = ""
+        if not seed_text:
+            seed_text = self._seed_utterance(target_emotion)
+
+        if not seed_text.strip():
+            raise RuntimeError("Empty seed text generated")
+
+        seed_classification = self.emotion_analyzer.classify_utterance(seed_text)
+        return seed_text, seed_classification
+
     def _seed_utterance(self, target_emotion: str) -> str:
         target = target_emotion.lower()
         if target not in EMOTION_SEED_TEMPLATES:
@@ -198,21 +224,11 @@ class SingleTurnSimulator:
         Returns:
             Dict with seed text, strategy response, follow-up, and classified emotions.
         """
-        seed_text = ""
-        # seed priority: explicit ESConv toggle > LLM seed > synthetic
-        if use_esconv_seed:
-            seed_text = self._seed_from_esconv(target_emotion) or ""
-        if use_llm_seed and not seed_text:
-            try:
-                seed_text = self._seed_with_llm(target_emotion)
-            except Exception:
-                seed_text = ""
-        if not seed_text:
-            seed_text = self._seed_utterance(target_emotion)
-
-        seed_classification = self.emotion_analyzer.classify_utterance(seed_text)
-        if not seed_text.strip():
-            raise RuntimeError("Empty seed text generated")
+        seed_text, seed_classification = self._generate_seed_text(
+            target_emotion,
+            use_llm_seed=use_llm_seed,
+            use_esconv_seed=use_esconv_seed,
+        )
 
         if use_baseline_strategy:
             strategy_prompt = (
@@ -393,6 +409,256 @@ class SingleTurnSimulator:
         plt.close()
 
 
+class MultiTurnRollout(SingleTurnSimulator):
+    """
+    Lightweight multi-turn simulator driven by deterministic policies.
+
+    Runs a short conversation (3–5 turns) where agent B chooses a strategy
+    based on the current classified emotion of agent A.
+    """
+
+    def __init__(
+        self,
+        turns: int = 5,
+        default_style: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.turns = turns
+        self.default_style = default_style
+
+    @staticmethod
+    def _format_history(history: List[str], window: int = 8) -> str:
+        """Join recent history lines into a readable context block."""
+        return "\n".join(history[-window:])
+
+    def _run_single_conversation(
+        self,
+        policy_name: str,
+        target_emotion: str,
+        policy_fn: Callable[[str], ResponseStrategy],
+        turns: Optional[int] = None,
+        style_modifier: Optional[str] = None,
+        use_llm_seed: bool = True,
+        use_esconv_seed: bool = False,
+        conversation_id: Optional[str] = None,
+    ) -> Tuple[List[Dict], Dict]:
+        turns = turns or self.turns
+        style_modifier = style_modifier or self.default_style
+        seed_text, seed_classification = self._generate_seed_text(
+            target_emotion,
+            use_llm_seed=use_llm_seed,
+            use_esconv_seed=use_esconv_seed,
+        )
+
+        conversation_id = conversation_id or f"{policy_name}-{target_emotion}-{int(time.time()*1000)}"
+        current_emotion = seed_classification["primary_emotion"]
+        history: List[str] = [f"usr: {seed_text}"]
+        per_turn_records: List[Dict] = [
+            {
+                "conversation_id": conversation_id,
+                "policy": policy_name,
+                "turn": 0,
+                "strategy": "seed",
+                "prior_emotion": "",
+                "detected_emotion": current_emotion,
+                "detected_confidence": seed_classification["confidence"],
+                "seed_text": seed_text,
+                "assistant_reply": "",
+                "user_reply": seed_text,
+                "emotion_scores": json.dumps(seed_classification.get("all_scores", {})),
+            }
+        ]
+        emotion_flow: List[Dict] = [
+            {
+                "speaker": "user",
+                "text": seed_text,
+                "emotion": current_emotion,
+                "confidence": seed_classification["confidence"],
+                "all_scores": seed_classification.get("all_scores", {}),
+            }
+        ]
+        last_user_text = seed_text
+
+        for turn_idx in range(1, turns + 1):
+            strategy = policy_fn(current_emotion)
+            if not isinstance(strategy, ResponseStrategy):
+                raise ValueError("Policy function must return a ResponseStrategy.")
+            style_text = style_modifier or ""
+            if self.config.brevity_hint:
+                style_text = f"{style_text} {self.config.brevity_hint}".strip()
+
+            strategy_prompt = build_strategy_prompt(
+                strategy=strategy,
+                partner_message=last_user_text,
+                conversation_context=history[-8:],
+                style_modifier=style_text,
+            )
+            strategy_reply = self._chat(
+                [
+                    {"role": "system", "content": "You are agent B, a supportive responder."},
+                    {
+                        "role": "user",
+                        "content": f"Conversation so far:\n{self._format_history(history)}\n\n"
+                                   f"Now reply using the strategy instructions below:\n{strategy_prompt}"
+                    },
+                ]
+            )
+            history.append(f"bot: {strategy_reply}")
+
+            followup_prompt = (
+                "You are the original speaker (agent A). Reply naturally to the last message."
+                " Keep it brief and authentic. Your emotion can change if the response shifts how you feel."
+                f" {self.config.brevity_hint}"
+                f"\nMost recent reply to you: \"{strategy_reply}\""
+                f"\nConversation so far:\n{self._format_history(history)}"
+            )
+            followup_reply = self._chat(
+                [
+                    {"role": "system", "content": "You are agent A. Speak authentically and briefly."},
+                    {"role": "user", "content": followup_prompt},
+                ]
+            )
+            history.append(f"usr: {followup_reply}")
+
+            followup_classification = self.emotion_analyzer.classify_utterance(followup_reply)
+            current_emotion = followup_classification["primary_emotion"]
+            last_user_text = followup_reply
+            emotion_flow.append(
+                {
+                    "speaker": "user",
+                    "text": followup_reply,
+                    "emotion": current_emotion,
+                    "confidence": followup_classification["confidence"],
+                    "all_scores": followup_classification.get("all_scores", {}),
+                }
+            )
+            per_turn_records.append(
+                {
+                    "conversation_id": conversation_id,
+                    "policy": policy_name,
+                    "turn": turn_idx,
+                    "strategy": strategy.value,
+                    "prior_emotion": emotion_flow[-2]["emotion"],
+                    "detected_emotion": current_emotion,
+                    "detected_confidence": followup_classification["confidence"],
+                    "seed_text": seed_text,
+                    "assistant_reply": strategy_reply,
+                    "user_reply": followup_reply,
+                    "emotion_scores": json.dumps(followup_classification.get("all_scores", {})),
+                }
+            )
+
+        trajectory_score = self.emotion_analyzer.compute_emotion_trajectory_score(
+            emotion_flow,
+            target_emotion.lower(),
+        )
+
+        summary = {
+            "conversation_id": conversation_id,
+            "policy": policy_name,
+            "intended_emotion": target_emotion.lower(),
+            "seed_emotion_detected": seed_classification["primary_emotion"],
+            "final_emotion": current_emotion,
+            "turns": turns,
+            "trajectory_to_intended": trajectory_score,
+        }
+        return per_turn_records, summary
+
+    def run_policy_batch(
+        self,
+        policy_name: str,
+        policy_fn: Callable[[str], ResponseStrategy],
+        emotions: List[str],
+        runs_per_emotion: int = 1,
+        turns: Optional[int] = None,
+        style_modifier: Optional[str] = None,
+        use_llm_seed: bool = True,
+        use_esconv_seed: bool = False,
+        save_csv: Optional[Union[str, Path]] = None,
+        save_plot: Optional[Union[str, Path]] = None,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Run multi-turn simulations for a single policy across emotions/runs.
+
+        Returns:
+            (per_turn_df, summary_df)
+        """
+        turns = turns or self.turns
+        per_turn_rows: List[Dict] = []
+        summary_rows: List[Dict] = []
+
+        if save_csv is None:
+            save_csv = Path(f"results/multiturn_{policy_name}.csv")
+        if isinstance(save_csv, (str, bytes)):
+            save_csv = Path(save_csv)
+        if save_plot and isinstance(save_plot, (str, bytes)):
+            save_plot = Path(save_plot)
+
+        for emotion in emotions:
+            for run_idx in range(runs_per_emotion):
+                try:
+                    conv_id = f"{policy_name}-{emotion}-{run_idx}"
+                    turn_rows, summary = self._run_single_conversation(
+                        policy_name=policy_name,
+                        target_emotion=emotion,
+                        policy_fn=policy_fn,
+                        turns=turns,
+                        style_modifier=style_modifier,
+                        use_llm_seed=use_llm_seed,
+                        use_esconv_seed=use_esconv_seed,
+                        conversation_id=conv_id,
+                    )
+                    per_turn_rows.extend(turn_rows)
+                    summary_rows.append({**summary, "status": "success"})
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    summary_rows.append(
+                        {
+                            "conversation_id": f"{policy_name}-{emotion}-{run_idx}",
+                            "policy": policy_name,
+                            "intended_emotion": emotion,
+                            "seed_emotion_detected": "",
+                            "final_emotion": "",
+                            "turns": turns,
+                            "trajectory_to_intended": 0.0,
+                            "status": f"failed: {exc}",
+                        }
+                    )
+
+        per_turn_df = pd.DataFrame(per_turn_rows)
+        summary_df = pd.DataFrame(summary_rows)
+
+        if save_csv:
+            save_csv.parent.mkdir(parents=True, exist_ok=True)
+            per_turn_df.to_csv(save_csv, index=False, encoding="utf-8")
+            summary_df.to_csv(save_csv.with_suffix(".summary.csv"), index=False, encoding="utf-8")
+
+        if save_plot and not per_turn_df.empty:
+            self._plot_policy_heatmap(per_turn_df, save_path=save_plot, policy_name=policy_name)
+
+        return per_turn_df, summary_df
+
+    def _plot_policy_heatmap(self, df: pd.DataFrame, save_path: Path, policy_name: str) -> None:
+        """
+        Heatmap of emotion counts by turn for a given policy.
+        """
+        pivot = (
+            df.groupby(["turn", "detected_emotion"])
+            .size()
+            .reset_index(name="count")
+            .pivot_table(index="turn", columns="detected_emotion", values="count", fill_value=0)
+        )
+        plt.figure(figsize=(8, 5))
+        sns.heatmap(pivot, annot=True, fmt=".0f", cmap="Greens")
+        plt.title(f"Emotion by turn - {policy_name}")
+        plt.xlabel("Emotion")
+        plt.ylabel("Turn (0 = seed)")
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close()
+
+
 def build_esconv_seed_bank(
     esconv_dataset,
     emotions: List[str],
@@ -499,3 +765,43 @@ def compute_transition_confidence_intervals(
             )
 
     return pd.DataFrame(records)
+
+
+def calming_policy(emotion: str) -> ResponseStrategy:
+    """
+    De-escalation focused mapping: soften high-negatives, steady neutrals,
+    stay exploratory/normalizing on positives.
+    """
+    emo = (emotion or "").lower()
+    mapping = {
+        "anger": ResponseStrategy.VALIDATE,
+        "disgust": ResponseStrategy.NORMALIZE,
+        "sadness": ResponseStrategy.AFFIRM,
+        "neutral": ResponseStrategy.GUIDE,
+        "joy": ResponseStrategy.EXPLORE,
+        "surprise": ResponseStrategy.EXPLORE,
+        "fear": ResponseStrategy.NORMALIZE,
+    }
+    return mapping.get(emo, ResponseStrategy.VALIDATE)
+
+
+def provocative_policy(emotion: str) -> ResponseStrategy:
+    """
+    Movement-focused mapping: reframe or push for action to introduce volatility.
+    """
+    emo = (emotion or "").lower()
+    mapping = {
+        "anger": ResponseStrategy.REFRAME,
+        "disgust": ResponseStrategy.REFRAME,
+        "sadness": ResponseStrategy.GUIDE,
+        "neutral": ResponseStrategy.GUIDE,
+        "joy": ResponseStrategy.REFRAME,
+        "surprise": ResponseStrategy.REFRAME,
+        "fear": ResponseStrategy.GUIDE,
+    }
+    return mapping.get(emo, ResponseStrategy.REFRAME)
+
+
+def always_validate_policy(_: str) -> ResponseStrategy:
+    """Baseline policy that always uses Validate."""
+    return ResponseStrategy.VALIDATE
