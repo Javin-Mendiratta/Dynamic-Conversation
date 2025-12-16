@@ -40,6 +40,12 @@
 - Seed comparison notebook added (`notebooks/seed_comparison_single_turn.ipynb`) to contrast synthetic vs LLM vs ESConv seeding on a tiny grid.
 - ESConv seeding: `build_esconv_seed_bank` samples the first turn of each ESConv conversation (short opener), classifier-checks it into the DistilRoBERTa label set, and collects per-emotion seed lists. In `SingleTurnSimulator`, seed priority is ESConv (if provided and `use_esconv_seed=True`) → LLM seed (if enabled) → synthetic templates.
 - Seeding decision: after reviewing the seed comparison grids, single-turn emotional consistency was high across modes. We’ll proceed with LLM seeding for variety and to avoid dependence on prewritten templates or ESConv biases, keeping synthetic/ESConv as baselines.
+- Phase 3 results (FT-06):
+  - Full LLM-seeded grid run (`results/single_turn_llm_full_experiment/full_llm_single_turn.*`): 7 emotions × 6 strategies + baseline, 20 reps each, zero failures. Config logged in `.meta.json` (gpt-4o-mini, 800-token cap after bump, retries/backoff).
+  - Wilson CIs computed per (emotion, strategy, followup emotion) in `_ci.csv`; heatmap in `_heatmap.png`. CSV contains successes only; `.log` empty (no failures).
+  - Findings: high emotional persistence in one turn (~71% overall same-emotion; >80% for joy/fear/surprise; neutral shifts more often, often to joy). Baseline shows slightly more movement than strategies (same-emotion rate ~0.59 vs ~0.73). Differences across strategies are small and CIs overlap, reinforcing that single-turn shifts are limited; motivates multi-turn policy tests for bigger movement.
+- Error analysis (FT-07):
+  - Notebook `notebooks/error_analysis_single_turn.ipynb` inspects the full LLM run: alignment rates (seed vs. intended, follow-up vs. intended), confidence summaries, sample slices for mismatches/low-confidence/neutral shifts, and CI sanity checks. Findings are logged in Markdown cells for report use.
 
 ## Phase 4: Multi-turn policy scaffolding (in progress)
 - Goal: enable short 3–5 turn simulations driven by deterministic policies for comparison (calming vs. provocative vs. baseline).
