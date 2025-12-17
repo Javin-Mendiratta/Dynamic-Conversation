@@ -1,6 +1,5 @@
 """
-Fine-Tuned Model-Based Strategy Selection
-6-Strategy Framework optimized for emotional flow analysis
+6-Strategy Framework chosen for emotional flow analysis
 
 Strategies:
 1. Validate - Empathetic acknowledgment
@@ -770,7 +769,7 @@ class EmotionStrategyAnalyzer:
             return
         
         self.analysis_results.to_csv(save_path)
-        print(f"✓ Saved results to {save_path}")
+        print(f"Saved results to {save_path}")
     
     def plot_histogram(self, save_path: str = '../results/6strategy_histogram.png'):
         """Create histogram visualization."""
@@ -835,7 +834,7 @@ def main():
     # Load dataset
     print("\nLoading ESConv dataset...")
     dataset = load_dataset("thu-coai/esconv")
-    print(f"✓ Dataset loaded with {len(dataset['train'])} conversations")
+    print(f"Dataset loaded with {len(dataset['train'])} conversations")
     
     # Initialize analyzer
     analyzer = EmotionStrategyAnalyzer(
@@ -872,13 +871,11 @@ def main():
     analyzer.plot_histogram()
     
     print("\n" + "=" * 70)
-    print("✓ PIPELINE COMPLETE!")
-    print("=" * 70)
+    print("PIPELINE COMPLETE!")
     print("\nGenerated files:")
-    print("  🤖 ../models/strategy_classifier_6way/ (fine-tuned model)")
-    print("  📊 6strategy_histogram.png")
-    print("  📄 6strategy_emotion_table.csv")
-    print("=" * 70)
+    print("../models/strategy_classifier_6way/ (fine-tuned model)")
+    print("6strategy_histogram.png")
+    print("6strategy_emotion_table.csv")
 
 
 if __name__ == "__main__":
