@@ -10,16 +10,20 @@ Based on methods from Zhou et al. (2023) for measuring emotion trajectories.
 
 import json
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.graph_objects as go
 import seaborn as sns
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
 from transformers import pipeline
+
+try:
+    import plotly.graph_objects as go
+except ImportError:  # plotly is only needed for Sankey; allow core flows without it
+    go = None
 
 
 class EmotionFlowAnalyzer:
@@ -42,14 +46,16 @@ class EmotionFlowAnalyzer:
         'surprise': 'rgba(255, 165, 0, 0.4)'
     }
     
-    def __init__(self, model_name: str = "j-hartmann/emotion-english-distilroberta-base", 
-                 use_gpu: bool = True):
+    def __init__(self, model_name: str = "j-hartmann/emotion-english-distilroberta-base",
+                 use_gpu: bool = True,
+                 batch_size: int = 64):
         """
         Initialize the emotion classifier.
         
         Args:
             model_name: HuggingFace model identifier for emotion classification
             use_gpu: Whether to use GPU if available (requires CUDA)
+            batch_size: Batch size for batched classification (used in process_dataset)
         """
         print(f"Loading emotion classifier: {model_name}")
         
@@ -64,6 +70,7 @@ class EmotionFlowAnalyzer:
         
         self.conversation_emotions = []
         self.transition_matrix = None
+        self.batch_size = batch_size
     
     def classify_utterance(self, text: str) -> Dict:
         """
@@ -120,13 +127,87 @@ class EmotionFlowAnalyzer:
         
         return conversation_flow
     
-    def process_dataset(self, dataset, max_conversations: Optional[int] = None):
+    def _classify_dialogues_batched(
+        self,
+        dialogues: Sequence[List[Dict]],
+        batch_size: Optional[int] = None,
+    ) -> List[List[Dict]]:
+        """
+        Run batched classification over multiple dialogues to maximize GPU throughput.
+        
+        Args:
+            dialogues: Sequence of dialogue turn lists (each turn is a dict with text/speaker).
+            batch_size: Optional override for batch size; defaults to self.batch_size.
+        
+        Returns:
+            List of emotion_flow lists matching the input ordering.
+        """
+        batch_size = batch_size or self.batch_size
+        items: List[Tuple[int, int, str, str]] = []
+        for conv_idx, dialogue in enumerate(dialogues):
+            for turn_idx, turn in enumerate(dialogue):
+                text = turn.get('text', '')
+                speaker = turn.get('speaker', 'unknown')
+                items.append((conv_idx, turn_idx, speaker, text))
+
+        flows: List[List[Dict]] = [[] for _ in dialogues]
+        if not items:
+            return flows
+
+        # Collect non-empty texts for a single batched pipeline call
+        non_empty = [(i, text) for i, (_, _, _, text) in enumerate(items) if isinstance(text, str) and text.strip()]
+        predictions: List[Optional[List[Dict]]] = [None] * len(items)
+
+        if non_empty:
+            texts = [text for _, text in non_empty]
+            batched_results = self.classifier(texts, batch_size=batch_size, truncation=True)
+            for (list_idx, _), result in zip(non_empty, batched_results):
+                predictions[list_idx] = result
+
+        # Stitch results back into per-conversation flows
+        for idx, (conv_idx, _, speaker, text) in enumerate(items):
+            if not isinstance(text, str) or not text.strip():
+                emotion_result = {
+                    'primary_emotion': 'neutral',
+                    'confidence': 1.0,
+                    'all_scores': {e: 0.0 for e in self.EMOTIONS}
+                }
+            else:
+                result = predictions[idx]
+                if result is None:
+                    # Fallback neutral if something went wrong aligning results
+                    emotion_result = {
+                        'primary_emotion': 'neutral',
+                        'confidence': 1.0,
+                        'all_scores': {e: 0.0 for e in self.EMOTIONS}
+                    }
+                else:
+                    emotion_scores = {item['label']: item['score'] for item in result}
+                    primary_emotion, confidence = max(emotion_scores.items(), key=lambda x: x[1])
+                    emotion_result = {
+                        'primary_emotion': primary_emotion,
+                        'confidence': confidence,
+                        'all_scores': emotion_scores
+                    }
+
+            flows[conv_idx].append({
+                'speaker': speaker,
+                'text': text,
+                'emotion': emotion_result['primary_emotion'],
+                'confidence': emotion_result['confidence'],
+                'all_scores': emotion_result['all_scores']
+            })
+
+        return flows
+
+    def process_dataset(self, dataset, max_conversations: Optional[int] = None, batch_size: Optional[int] = None):
         """
         Process ESConv dataset and classify all conversations.
         
         Args:
             dataset: ESConv dataset from HuggingFace
             max_conversations: Limit number of conversations to process (for testing)
+            batch_size: Optional override for batched classification
         """
         print("Processing conversations...")
         
@@ -135,26 +216,35 @@ class EmotionFlowAnalyzer:
             data = data.select(range(min(max_conversations, len(data))))
         
         self.conversation_emotions = []
-        
-        for idx in tqdm(range(len(data)), desc="Classifying emotions"):
+
+        dialogues: List[List[Dict]] = []
+        metadata: List[Dict] = []
+        for idx in tqdm(range(len(data)), desc="Parsing conversations"):
             try:
                 conv_data = json.loads(data[idx]['text'])
             except json.JSONDecodeError:
                 continue
-            
+
             if 'dialog' not in conv_data:
                 continue
-            
-            emotion_flow = self.classify_conversation(conv_data['dialog'])
-            
-            self.conversation_emotions.append({
+
+            dialogues.append(conv_data['dialog'])
+            metadata.append({
                 'conversation_id': idx,
                 'emotion_type': conv_data.get('emotion_type', 'unknown'),
                 'problem_type': conv_data.get('problem_type', 'unknown'),
                 'situation': conv_data.get('situation', ''),
-                'emotion_flow': emotion_flow
             })
-        
+
+        print(f"Classifying {len(dialogues)} conversations in batches...")
+        flows = self._classify_dialogues_batched(dialogues, batch_size=batch_size)
+
+        for meta, flow in zip(metadata, flows):
+            self.conversation_emotions.append({
+                **meta,
+                'emotion_flow': flow
+            })
+
         print(f"Successfully processed {len(self.conversation_emotions)} conversations")
     
     def compute_transition_matrix(self) -> pd.DataFrame:
@@ -283,6 +373,8 @@ class EmotionFlowAnalyzer:
             save_path: Path to save HTML file
             show: Display the figure in supported environments (e.g., notebooks)
         """
+        if go is None:
+            raise ImportError("plotly is required for Sankey diagrams. Install with `pip install plotly`.")  # pragma: no cover
         if conversation_id >= len(self.conversation_emotions):
             print(f"Warning: Conversation ID {conversation_id} not found. Using ID 0.")
             conversation_id = 0

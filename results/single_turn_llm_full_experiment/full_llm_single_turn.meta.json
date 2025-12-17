@@ -1,0 +1,33 @@
+{
+  "emotions": [
+    "anger",
+    "disgust",
+    "fear",
+    "joy",
+    "neutral",
+    "sadness",
+    "surprise"
+  ],
+  "strategies": [
+    "Validate",
+    "Explore",
+    "Reframe",
+    "Affirm",
+    "Guide",
+    "Normalize",
+    "baseline"
+  ],
+  "runs_per_pair": 20,
+  "style_modifier": "concise and emotionally attuned",
+  "use_llm_seed": true,
+  "include_baseline": true,
+  "config": {
+    "model": "gpt-4o-mini",
+    "temperature": 1.0,
+    "max_tokens": 800,
+    "retries": 3,
+    "backoff_seconds": 2.0
+  },
+  "success_count": 980,
+  "failure_count": 0
+}

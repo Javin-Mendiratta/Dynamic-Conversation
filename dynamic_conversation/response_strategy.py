@@ -1,6 +1,5 @@
 """
-Fine-Tuned Model-Based Strategy Selection
-6-Strategy Framework optimized for emotional flow analysis
+6-Strategy Framework chosen for emotional flow analysis
 
 Strategies:
 1. Validate - Empathetic acknowledgment
@@ -43,6 +42,86 @@ class ResponseStrategy(Enum):
     AFFIRM = "Affirm"           # Confidence building
     GUIDE = "Guide"             # Action-oriented advice
     NORMALIZE = "Normalize"     # Universal experience
+
+
+STRATEGY_PROMPT_TEMPLATES: Dict[ResponseStrategy, str] = {
+    ResponseStrategy.VALIDATE: (
+        "You are a supportive responder. Use the VALIDATE strategy: acknowledge and mirror the "
+        "speaker's feelings without adding advice or new topics. Keep the focus on how they feel. "
+        "{style_modifier}\n"
+        "Recent context:\n{context}\n"
+        "Partner just said: \"{partner_message}\"\n"
+        "Respond in a single turn with a validating message."
+    ),
+    ResponseStrategy.EXPLORE: (
+        "You are a supportive responder. Use the EXPLORE strategy: ask gentle, open questions to "
+        "deepen understanding and invite elaboration. Avoid giving advice or reframing. {style_modifier}\n"
+        "Recent context:\n{context}\n"
+        "Partner just said: \"{partner_message}\"\n"
+        "Respond in a single turn with exploratory questions or prompts."
+    ),
+    ResponseStrategy.REFRAME: (
+        "You are a supportive responder. Use the REFRAME strategy: offer a perspective shift that "
+        "helps the speaker see their situation differently, while staying empathetic. Avoid directives. "
+        "{style_modifier}\n"
+        "Recent context:\n{context}\n"
+        "Partner just said: \"{partner_message}\"\n"
+        "Respond in a single turn with a gentle reframing."
+    ),
+    ResponseStrategy.AFFIRM: (
+        "You are a supportive responder. Use the AFFIRM strategy: highlight strengths, efforts, or "
+        "positive traits to build confidence. Do not introduce new topics or advice. {style_modifier}\n"
+        "Recent context:\n{context}\n"
+        "Partner just said: \"{partner_message}\"\n"
+        "Respond in a single turn with an affirming message."
+    ),
+    ResponseStrategy.GUIDE: (
+        "You are a supportive responder. Use the GUIDE strategy: offer clear, actionable steps or "
+        "practical suggestions while staying concise. Keep empathy but focus on doable next moves. "
+        "{style_modifier}\n"
+        "Recent context:\n{context}\n"
+        "Partner just said: \"{partner_message}\"\n"
+        "Respond in a single turn with brief guidance."
+    ),
+    ResponseStrategy.NORMALIZE: (
+        "You are a supportive responder. Use the NORMALIZE strategy: note that others experience similar "
+        "feelings to reduce isolation, without minimizing their experience. Avoid advice. {style_modifier}\n"
+        "Recent context:\n{context}\n"
+        "Partner just said: \"{partner_message}\"\n"
+        "Respond in a single turn with a normalizing, empathetic message."
+    ),
+}
+
+
+def build_strategy_prompt(
+    strategy: ResponseStrategy,
+    partner_message: str,
+    conversation_context: Optional[List[str]] = None,
+    style_modifier: Optional[str] = None,
+) -> str:
+    """
+    Format a prompt enforcing a target strategy for the next response.
+
+    Args:
+        strategy: Target ResponseStrategy to enforce.
+        partner_message: Latest utterance from the partner/user.
+        conversation_context: Optional recent turns to ground the reply.
+        style_modifier: Optional stylistic cue (e.g., "be concise", "warmer tone").
+
+    Returns:
+        A formatted prompt string ready for LLM completion.
+    """
+    template = STRATEGY_PROMPT_TEMPLATES[strategy]
+    if conversation_context:
+        context_block = "\n".join(f"- {turn}" for turn in conversation_context[-4:])
+    else:
+        context_block = "- (no prior context provided)"
+    style_text = f"Style modifier: {style_modifier}." if style_modifier else "Style modifier: stay natural."
+    return template.format(
+        context=context_block,
+        partner_message=partner_message.strip(),
+        style_modifier=style_text,
+    )
 
 
 class StrategyDatasetBuilder:
@@ -690,7 +769,7 @@ class EmotionStrategyAnalyzer:
             return
         
         self.analysis_results.to_csv(save_path)
-        print(f"✓ Saved results to {save_path}")
+        print(f"Saved results to {save_path}")
     
     def plot_histogram(self, save_path: str = '../results/6strategy_histogram.png'):
         """Create histogram visualization."""
@@ -755,7 +834,7 @@ def main():
     # Load dataset
     print("\nLoading ESConv dataset...")
     dataset = load_dataset("thu-coai/esconv")
-    print(f"✓ Dataset loaded with {len(dataset['train'])} conversations")
+    print(f"Dataset loaded with {len(dataset['train'])} conversations")
     
     # Initialize analyzer
     analyzer = EmotionStrategyAnalyzer(
@@ -792,13 +871,11 @@ def main():
     analyzer.plot_histogram()
     
     print("\n" + "=" * 70)
-    print("✓ PIPELINE COMPLETE!")
-    print("=" * 70)
+    print("PIPELINE COMPLETE!")
     print("\nGenerated files:")
-    print("  🤖 ../models/strategy_classifier_6way/ (fine-tuned model)")
-    print("  📊 6strategy_histogram.png")
-    print("  📄 6strategy_emotion_table.csv")
-    print("=" * 70)
+    print("../models/strategy_classifier_6way/ (fine-tuned model)")
+    print("6strategy_histogram.png")
+    print("6strategy_emotion_table.csv")
 
 
 if __name__ == "__main__":
