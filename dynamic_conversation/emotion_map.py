@@ -9,13 +9,12 @@ Based on methods from Zhou et al. (2023) for measuring emotion trajectories.
 """
 
 import json
-from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import torch
+
+from collections import defaultdict
 from datasets import load_dataset
 from tqdm import tqdm
 from transformers import pipeline
@@ -31,7 +30,7 @@ class EmotionFlowAnalyzer:
     Analyzes emotion trajectories in multi-turn dialogues.
     
     Uses DistilRoBERTa-base emotion classifier to classify utterances into
-    seven emotion categories: anger, disgust, fear, joy, neutral, sadness, surprise.
+    seven emotion categories
     """
     
     EMOTIONS = ['anger', 'disgust', 'fear', 'joy', 'neutral', 'sadness', 'surprise']
@@ -46,9 +45,7 @@ class EmotionFlowAnalyzer:
         'surprise': 'rgba(255, 165, 0, 0.4)'
     }
     
-    def __init__(self, model_name: str = "j-hartmann/emotion-english-distilroberta-base",
-                 use_gpu: bool = True,
-                 batch_size: int = 64):
+    def __init__(self, model_name = "j-hartmann/emotion-english-distilroberta-base", use_gpu = True, batch_size = 64):
         """
         Initialize the emotion classifier.
         
@@ -57,8 +54,7 @@ class EmotionFlowAnalyzer:
             use_gpu: Whether to use GPU if available (requires CUDA)
             batch_size: Batch size for batched classification (used in process_dataset)
         """
-        print(f"Loading emotion classifier: {model_name}")
-        
+
         device = 0 if (use_gpu and torch.cuda.is_available()) else -1
         
         self.classifier = pipeline(
@@ -72,18 +68,17 @@ class EmotionFlowAnalyzer:
         self.transition_matrix = None
         self.batch_size = batch_size
     
-    def classify_utterance(self, text: str) -> Dict:
+    def classify_utterance(self, text):
         """
-        Classify emotion of a single utterance.
-        
         Args:
-            text: Input utterance text
+            text: utterance string
             
         Returns:
             Dictionary containing primary emotion, confidence, and all emotion scores
         """
 
         if not text or not isinstance(text, str) or not text.strip():
+
             return {
                 'primary_emotion': 'neutral',
                 'confidence': 1.0,
@@ -100,19 +95,19 @@ class EmotionFlowAnalyzer:
             'all_scores': emotion_scores
         }
     
-    def classify_conversation(self, dialogue: List[Dict]) -> List[Dict]:
+    def classify_conversation(self, dialogue):
         """
-        Classify emotions for all utterances in a conversation.
-        
         Args:
-            dialogue: List of dialogue turns with 'text' and 'speaker' keys
+            dialogue: List of dialogue dicts with 'text' and 'speaker' keys
             
         Returns:
-            List of emotion classifications for each turn
+            List of emotion classifications for each dialogue turn
         """
+
         conversation_flow = []
         
         for turn in dialogue:
+
             text = turn.get('text', '')
             speaker = turn.get('speaker', 'unknown')
             emotion_result = self.classify_utterance(text)
@@ -127,61 +122,63 @@ class EmotionFlowAnalyzer:
         
         return conversation_flow
     
-    def _classify_dialogues_batched(
-        self,
-        dialogues: Sequence[List[Dict]],
-        batch_size: Optional[int] = None,
-    ) -> List[List[Dict]]:
+    def _classify_dialogues_batched(self, dialogues, batch_size = None,):
         """
-        Run batched classification over multiple dialogues to maximize GPU throughput.
-        
         Args:
-            dialogues: Sequence of dialogue turn lists (each turn is a dict with text/speaker).
+            dialogues: Sequence of dialogue turns (each turn is a dict with text/speaker).
             batch_size: Optional override for batch size; defaults to self.batch_size.
         
         Returns:
             List of emotion_flow lists matching the input ordering.
         """
+        
         batch_size = batch_size or self.batch_size
-        items: List[Tuple[int, int, str, str]] = []
+        items = []
+
         for conv_idx, dialogue in enumerate(dialogues):
+
             for turn_idx, turn in enumerate(dialogue):
                 text = turn.get('text', '')
                 speaker = turn.get('speaker', 'unknown')
                 items.append((conv_idx, turn_idx, speaker, text))
 
-        flows: List[List[Dict]] = [[] for _ in dialogues]
+        flows = [[] for _ in dialogues]
+
         if not items:
             return flows
 
-        # Collect non-empty texts for a single batched pipeline call
         non_empty = [(i, text) for i, (_, _, _, text) in enumerate(items) if isinstance(text, str) and text.strip()]
-        predictions: List[Optional[List[Dict]]] = [None] * len(items)
+        predictions = [None] * len(items)
 
         if non_empty:
+
             texts = [text for _, text in non_empty]
             batched_results = self.classifier(texts, batch_size=batch_size, truncation=True)
             for (list_idx, _), result in zip(non_empty, batched_results):
                 predictions[list_idx] = result
 
-        # Stitch results back into per-conversation flows
         for idx, (conv_idx, _, speaker, text) in enumerate(items):
+
             if not isinstance(text, str) or not text.strip():
                 emotion_result = {
                     'primary_emotion': 'neutral',
                     'confidence': 1.0,
                     'all_scores': {e: 0.0 for e in self.EMOTIONS}
                 }
+
             else:
+
                 result = predictions[idx]
                 if result is None:
-                    # Fallback neutral if something went wrong aligning results
+                   
                     emotion_result = {
                         'primary_emotion': 'neutral',
                         'confidence': 1.0,
                         'all_scores': {e: 0.0 for e in self.EMOTIONS}
                     }
+
                 else:
+
                     emotion_scores = {item['label']: item['score'] for item in result}
                     primary_emotion, confidence = max(emotion_scores.items(), key=lambda x: x[1])
                     emotion_result = {
@@ -200,26 +197,26 @@ class EmotionFlowAnalyzer:
 
         return flows
 
-    def process_dataset(self, dataset, max_conversations: Optional[int] = None, batch_size: Optional[int] = None):
+    def process_dataset(self, dataset, max_conversations = None, batch_size = None):
         """
-        Process ESConv dataset and classify all conversations.
-        
         Args:
             dataset: ESConv dataset from HuggingFace
-            max_conversations: Limit number of conversations to process (for testing)
+            max_conversations: Optional limit of conversations to process 
             batch_size: Optional override for batched classification
         """
-        print("Processing conversations...")
-        
+
         data = dataset['train']
+
         if max_conversations:
             data = data.select(range(min(max_conversations, len(data))))
         
         self.conversation_emotions = []
 
-        dialogues: List[List[Dict]] = []
-        metadata: List[Dict] = []
+        dialogues = []
+        metadata = []
+
         for idx in tqdm(range(len(data)), desc="Parsing conversations"):
+
             try:
                 conv_data = json.loads(data[idx]['text'])
             except json.JSONDecodeError:
@@ -229,6 +226,7 @@ class EmotionFlowAnalyzer:
                 continue
 
             dialogues.append(conv_data['dialog'])
+
             metadata.append({
                 'conversation_id': idx,
                 'emotion_type': conv_data.get('emotion_type', 'unknown'),
@@ -236,53 +234,47 @@ class EmotionFlowAnalyzer:
                 'situation': conv_data.get('situation', ''),
             })
 
-        print(f"Classifying {len(dialogues)} conversations in batches...")
-        flows = self._classify_dialogues_batched(dialogues, batch_size=batch_size)
+        flows = self._classify_dialogues_batched(dialogues, batch_size = batch_size)
 
         for meta, flow in zip(metadata, flows):
+
             self.conversation_emotions.append({
                 **meta,
                 'emotion_flow': flow
             })
 
-        print(f"Successfully processed {len(self.conversation_emotions)} conversations")
+        print(f"Finished processing {len(self.conversation_emotions)} conversations")
     
-    def compute_transition_matrix(self) -> pd.DataFrame:
+    def compute_transition_matrix(self):
         """
-        Compute emotion-to-emotion transition probability matrix.
-        
         Returns:
-            DataFrame with transition probabilities between emotions
+            DataFrame for emotion-emotion transition matrix
         """
+
         transitions = defaultdict(lambda: defaultdict(int))
         
         for conv in self.conversation_emotions:
+
             emotions = [turn['emotion'] for turn in conv['emotion_flow']]
             for i in range(len(emotions) - 1):
                 transitions[emotions[i]][emotions[i + 1]] += 1
         
         transition_df = pd.DataFrame(transitions).fillna(0)
         transition_df = transition_df.reindex(
-            index=self.EMOTIONS, 
-            columns=self.EMOTIONS, 
-            fill_value=0
+            index = self.EMOTIONS, 
+            columns = self.EMOTIONS, 
+            fill_value = 0
         )
         
         self.transition_matrix = transition_df.div(
-            transition_df.sum(axis=1), 
-            axis=0
+            transition_df.sum(axis = 1), 
+            axis = 0
         ).fillna(0)
         
         return self.transition_matrix
     
-    def compute_emotion_trajectory_score(self, emotion_flow: List[Dict], 
-                                        target_emotion: str) -> float:
+    def compute_emotion_trajectory_score(self, emotion_flow, target_emotion):
         """
-        Compute trajectory score measuring trend toward target emotion.
-        
-        Uses time-weighted scoring where later turns are weighted more heavily,
-        similar to Zhou et al. (2023) reward formulation.
-        
         Args:
             emotion_flow: List of emotion classifications for a conversation
             target_emotion: Target emotion to measure trajectory toward
@@ -290,6 +282,7 @@ class EmotionFlowAnalyzer:
         Returns:
             Trajectory score (higher = stronger trend toward target emotion)
         """
+
         n_turns = len(emotion_flow)
         if n_turns == 0:
             return 0.0
@@ -298,6 +291,7 @@ class EmotionFlowAnalyzer:
         weight_sum = 0.0
         
         for i, turn in enumerate(emotion_flow):
+
             time_weight = (i + 1) / n_turns
             emotion_score = turn['all_scores'].get(target_emotion, 0.0)
             trajectory_score += time_weight * emotion_score
@@ -305,16 +299,16 @@ class EmotionFlowAnalyzer:
         
         return trajectory_score / weight_sum if weight_sum > 0 else 0.0
     
-    def compute_all_trajectory_scores(self) -> pd.DataFrame:
+    def compute_all_trajectory_scores(self):
         """
-        Compute trajectory scores for all emotions in all conversations.
-        
         Returns:
             DataFrame with trajectory scores for each conversation and emotion
         """
+
         results = []
         
         for conv in self.conversation_emotions:
+
             scores = {
                 'conversation_id': conv['conversation_id'],
                 'emotion_type': conv['emotion_type'],
@@ -322,6 +316,7 @@ class EmotionFlowAnalyzer:
             }
             
             for emotion in self.EMOTIONS:
+
                 score = self.compute_emotion_trajectory_score(
                     conv['emotion_flow'], 
                     emotion
@@ -332,49 +327,48 @@ class EmotionFlowAnalyzer:
         
         return pd.DataFrame(results)
     
-    def plot_transition_heatmap(self, save_path: str = '../results/emotion_transition_heatmap.png'):
+    def plot_transition_heatmap(self, save_path = '../results/phase1_ESConv_exploration/emotion_transition_heatmap.png'):
         """
-        Create heatmap visualization of emotion transitions.
-        
         Args:
             save_path: Path to save the heatmap image
         """
+
         if self.transition_matrix is None:
             self.compute_transition_matrix()
         
         plt.figure(figsize=(10, 8))
+
         sns.heatmap(
             self.transition_matrix,
-            annot=True,
-            fmt='.3f',
-            cmap='YlOrRd',
-            cbar_kws={'label': 'Transition Probability'},
-            square=True
+            annot = True,
+            fmt = '.3f',
+            cmap = 'YlOrRd',
+            cbar_kws = {'label': 'Transition Probability'},
+            square = True
         )
-        plt.title('Emotion-to-Emotion Transition Probabilities', 
-                 fontsize=14, pad=20)
-        plt.xlabel('To Emotion', fontsize=12)
-        plt.ylabel('From Emotion', fontsize=12)
+
+        plt.title('Emotion-to-Emotion Transition Probabilities', fontsize = 14, pad = 20)
+        plt.xlabel('To Emotion', fontsize = 12)
+        plt.ylabel('From Emotion', fontsize = 12)
         plt.tight_layout()
+
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"Saved transition heatmap to {save_path}")
-        plt.show()
+            plt.savefig(save_path, dpi = 300, bbox_inches = 'tight')
+            print(f"Transition heatmap saved to {save_path}")
+
         plt.close()
         
     
-    def plot_sankey_diagram(self, conversation_id: int = 0,
-                           save_path: str = '../results/emotion_sankey.html'):
+    def plot_sankey_diagram(self, conversation_id = 0, save_path = '../results/phase1_ESConv_exploration/emotion_sankey.html'):
         """
-        Create Sankey diagram for a single conversation's emotion flow.
-        
         Args:
             conversation_id: ID of conversation to visualize
             save_path: Path to save HTML file
-            show: Display the figure in supported environments (e.g., notebooks)
         """
+
         if go is None:
-            raise ImportError("plotly is required for Sankey diagrams. Install with `pip install plotly`.")  # pragma: no cover
+            raise ImportError("plotly is required for Sankey diagrams. Install with --pip install plotly--")
+        
         if conversation_id >= len(self.conversation_emotions):
             print(f"Warning: Conversation ID {conversation_id} not found. Using ID 0.")
             conversation_id = 0
@@ -388,45 +382,42 @@ class EmotionFlowAnalyzer:
         target = list(range(1, len(emotions)))
         value = [1] * (len(emotions) - 1)
         
-        node_colors = [self.EMOTION_COLORS.get(e, self.EMOTION_COLORS['neutral']) 
-                      for e in emotions]
+        node_colors = [self.EMOTION_COLORS.get(e, self.EMOTION_COLORS['neutral']) for e in emotions]
         
-        fig = go.Figure(data=[go.Sankey(
-            node=dict(
-                pad=15,
-                thickness=20,
-                line=dict(color="black", width=0.5),
-                label=labels,
-                color=node_colors
+        fig = go.Figure(data = [go.Sankey(
+            node = dict(
+                pad = 15,
+                thickness = 20,
+                line = dict(color="black", width=0.5),
+                label = labels,
+                color = node_colors
             ),
-            link=dict(source=source, target=target, value=value)
+            link = dict(source=source, target=target, value=value)
         )])
         
         fig.update_layout(
-            title_text=f"Emotion Flow - Conversation {conversation_id}<br>" + 
+
+            title_text = f"Emotion Flow - Conversation {conversation_id}<br>" + 
                       f"Problem: {conv['problem_type']}, " +
                       f"Initial Emotion: {conv['emotion_type']}",
-            font_size=12,
-            height=600
+            font_size = 12,
+            height = 600
         )
         
         if save_path:
             fig.write_html(save_path)
-            print(f"✓ Saved Sankey diagram to {save_path}")
-        
+            print(f"Sankey diagram saved to {save_path}")
+
         fig.show()
-        
         return fig
     
-    def plot_aggregate_emotion_flow(self, save_path: str = '../results/aggregate_emotion_flow.png',
-                                    max_turns: int = 20):
+    def plot_aggregate_emotion_flow(self, save_path = '../results/phase1_ESConv_exploration/aggregate_emotion_flow.png', max_turns = 20):
         """
-        Plot aggregate emotion distribution across conversation turns.
-        
         Args:
             save_path: Path to save the plot
             max_turns: Maximum number of turns to visualize
         """
+
         turn_emotions = defaultdict(lambda: defaultdict(int))
         
         for conv in self.conversation_emotions:
@@ -435,8 +426,10 @@ class EmotionFlowAnalyzer:
                     turn_emotions[turn_idx][turn['emotion']] += 1
         
         data = []
+
         for turn_idx in sorted(turn_emotions.keys()):
             for emotion in self.EMOTIONS:
+
                 count = turn_emotions[turn_idx].get(emotion, 0)
                 data.append({
                     'turn': turn_idx + 1,
@@ -445,79 +438,46 @@ class EmotionFlowAnalyzer:
                 })
         
         df = pd.DataFrame(data)
-        pivot_df = df.pivot(index='turn', columns='emotion', values='count').fillna(0)
+        pivot_df = df.pivot(index = 'turn', columns = 'emotion', values = 'count').fillna(0)
 
-        fig, ax = plt.subplots(figsize=(12, 6))
-        pivot_df.plot.area(ax=ax, alpha=0.7)
+        _, ax = plt.subplots(figsize = (12, 6))
+        pivot_df.plot.area(ax = ax, alpha = 0.7)
         
-        plt.title('Emotion Distribution Across Conversation Turns', 
-                 fontsize=14, pad=20)
-        plt.xlabel('Turn Number', fontsize=12)
-        plt.ylabel('Count', fontsize=12)
-        plt.legend(title='Emotion', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.title('Emotion Distribution Across Conversation Turns', fontsize = 14, pad = 20)
+        plt.xlabel('Turn Number', fontsize = 12)
+        plt.ylabel('Count', fontsize = 12)
+        plt.legend(title = 'Emotion', bbox_to_anchor = (1.05, 1), loc = 'upper left')
         plt.tight_layout()
+
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"✓ Saved aggregate emotion flow to {save_path}")
-        plt.show()
+            plt.savefig(save_path, dpi = 300, bbox_inches = 'tight')
+            print(f"Aggregate emotion flow saved to {save_path}")
+
         plt.close()
         
         
 
 
 def main():
-    """Execute emotion flow analysis pipeline."""
-    
-    print("=" * 60)
-    print("EMOTION FLOW ANALYSIS - ESConv Dataset")
-    print("=" * 60)
-    print("\nLoading ESConv dataset...")
+     
     dataset = load_dataset("thu-coai/esconv")
-    print(f"✓ Dataset loaded with {len(dataset['train'])} conversations")
-    
-    print("\n" + "=" * 60)
-    analyzer = EmotionFlowAnalyzer(use_gpu=True)
-    
-    print("\n" + "=" * 60)
-    analyzer.process_dataset(dataset, max_conversations=100)
+    analyzer = EmotionFlowAnalyzer(use_gpu = True)
+    analyzer.process_dataset(dataset, max_conversations = 100)
     
     if len(analyzer.conversation_emotions) == 0:
-        print("\n❌ Error: No conversations were successfully processed!")
+        print("\nError: No conversations were successfully processed")
         return
     
-    print("\n" + "=" * 60)
-    print("Computing emotion transition matrix...")
-    transition_matrix = analyzer.compute_transition_matrix()
-    print("\nTransition Matrix:")
-    print(transition_matrix.round(3))
-    
-    print("\n" + "=" * 60)
-    print("Computing emotion trajectory scores...")
+    analyzer.compute_transition_matrix()
     trajectory_scores = analyzer.compute_all_trajectory_scores()
-    print("\nTrajectory Scores (first 5 conversations):")
-    print(trajectory_scores.head())
-    
-    trajectory_scores.to_csv('../results/emotion_trajectory_scores.csv', index=False)
-    print("\n✓ Saved trajectory scores to emotion_trajectory_scores.csv")
-    
-    print("\n" + "=" * 60)
-    print("Generating visualizations...")
-    print()
-    
+    trajectory_scores.to_csv('../results/phase1_ESConv_exploration/emotion_trajectory_scores.csv', index = False)
+    print("\nTrajectory scores saved to results/phase1_ESConv_exploration/emotion_trajectory_scores.csv")
+
     analyzer.plot_transition_heatmap()
-    analyzer.plot_sankey_diagram(conversation_id=0)
+    analyzer.plot_sankey_diagram(conversation_id = 0)
     analyzer.plot_aggregate_emotion_flow()
     
-    print("\n" + "=" * 60)
-    print("✓ ANALYSIS COMPLETE!")
-    print("=" * 60)
-    print(f"Processed: {len(analyzer.conversation_emotions)} conversations")
-    print("\nGenerated files:")
-    print("  📊 emotion_transition_heatmap.png")
-    print("  📈 emotion_sankey.html")
-    print("  📉 aggregate_emotion_flow.png")
-    print("  📄 emotion_trajectory_scores.csv")
-    print("=" * 60)
+    print(f"Finished processing {len(analyzer.conversation_emotions)} conversations")
 
 
 if __name__ == "__main__":
