@@ -1,7 +1,10 @@
 # Dynamic Conversation (CS 685 Final Project)
+# Dynamic Conversation (CS 685 Final Project)
 
 Pipeline for analyzing and steering emotion flow in multi-turn LLM dialogues. The project covers four phases: 1) ESConv emotion dynamics exploration, 2) normalizing response strategies and building prompts/classifier scaffolding, 3) simulating single-turn emotion shifts with two LLM agents, and 4) simulating multi-turn dialogue with three deterministic strategy policies.
+Pipeline for analyzing and steering emotion flow in multi-turn LLM dialogues. The project covers four phases: 1) ESConv emotion dynamics exploration, 2) normalizing response strategies and building prompts/classifier scaffolding, 3) simulating single-turn emotion shifts with two LLM agents, and 4) simulating multi-turn dialogue with three deterministic strategy policies.
 
+## Repo layout
 ## Repo layout
 - `dynamic_conversation/`: importable package  
   - `emotion_map.py`: `EmotionFlowAnalyzer` for DistilRoBERTa emotion classification, transition matrices, trajectory scores, heatmap/Sankey plots.  
@@ -53,6 +56,17 @@ from dynamic_conversation import (
 )
 
 # Phase 1: ESConv emotion flows
+from dynamic_conversation import (
+    EmotionFlowAnalyzer,
+    ResponseStrategy,
+    build_strategy_prompt,
+    build_esconv_seed_bank,
+    SingleTurnSimulator,
+    MultiTurnRollout,
+    calming_policy,
+)
+
+# Phase 1: ESConv emotion flows
 ds = load_dataset("thu-coai/esconv")
 analyzer = EmotionFlowAnalyzer(use_gpu=False)
 analyzer.process_dataset(ds, max_conversations=50)
@@ -86,8 +100,44 @@ mt_df = rollout.run_policy_grid(
     runs_per_emotion=1,
     save_dir="results/multiturn_runs",
 )
+analyzer.plot_transition_heatmap(save_path="results/phase1_ESConv_exploration/emotion_transition_heatmap.png")
+
+# Strategy prompt helper
+prompt = build_strategy_prompt(
+    ResponseStrategy.VALIDATE,
+    partner_message="I'm overwhelmed about finals.",
+    conversation_context=["usr: Finals are stressing me out."],
+    style_modifier="concise, warm tone",
+)
+
+# Phase 3: single-turn simulation (requires OPENAI_API_KEY)
+sim = SingleTurnSimulator(use_gpu=False)
+df = sim.run_batch(
+    emotions=["anger", "joy"],
+    strategies=[ResponseStrategy.VALIDATE, ResponseStrategy.GUIDE],
+    runs_per_pair=2,
+    use_llm_seed=True,
+    save_csv="results/demo_single_turn.csv",
+    save_heatmap="results/demo_single_turn_heatmap.png",
+)
+
+# Phase 4: multi-turn policies (5-turn calming policy example)
+rollout = MultiTurnRollout(use_gpu=False)
+mt_df = rollout.run_policy_grid(
+    start_emotions=["sadness"],
+    policy=calming_policy,
+    turns=5,
+    runs_per_emotion=1,
+    save_dir="results/multiturn_runs",
+)
 ```
 
+## Notebook workflow (all phases)
+- Install the package (`pip install -e .` locally or `pip install git+...` on Colab) before running any notebook.  
+- Set `OPENAI_API_KEY` in the environment; LLM calls will prompt for it if missing, but Colab secrets are recommended.  
+- Import from `dynamic_conversation` instead of copying logic; notebooks mirror the package functions/classes.  
+- Outputs write to `results/` with accompanying `.meta.json` and `.log` where applicable; adjust paths in notebook parameters if you want separate runs.  
+- Notebook map: see `notebooks/README.md` for per-notebook details and expected outputs.
 ## Notebook workflow (all phases)
 - Install the package (`pip install -e .` locally or `pip install git+...` on Colab) before running any notebook.  
 - Set `OPENAI_API_KEY` in the environment; LLM calls will prompt for it if missing, but Colab secrets are recommended.  
