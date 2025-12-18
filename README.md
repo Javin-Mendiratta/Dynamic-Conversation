@@ -25,10 +25,6 @@ Pipeline for analyzing and steering emotion flow in multi-turn LLM dialogues. Th
 - Prototype short multi-turn policies (calming vs. provocative vs. validate) as a stepping stone toward policy learning/bandits.
 
 ## Setup (local)
-```bash
-python -m venv .venv && source .venv/bin/activate  # or use any env manager
-pip install -e .
-```
 All dependencies are in `pyproject.toml`. GPU is optional; set `use_gpu=False` in analyzers/simulators if CPU-only.
 
 ## Colab workflow
@@ -110,10 +106,3 @@ Priority inside `SingleTurnSimulator`/`MultiTurnRollout`: ESConv (if provided an
 - `results/single_turn_prompting_exploration/`: synthetic vs LLM vs ESConv seeding grids (CSV/heatmap/meta/log) used to select LLM seeding.  
 - `results/single_turn_llm_full_experiment/full_llm_single_turn.csv`: main Phase 3 grid (7 emotions × 6 strategies + baseline, 20 runs each), `_ci.csv` for Wilson CIs, `_heatmap.png` for shift visualization, `.meta.json` for config, `.log` for failures (empty when clean).  
 - `results/multiturn_runs/`: Phase 4 demo; `*_5turn.csv` per policy (turn-level emotions/strategies), `*_5turn.summary.csv` for final emotions/trajectory scores, `*_5turn_heatmap.png`, and `multiturn_trajectory_summary.csv` (mean ± 95% CI table).
-
-## Project scope and status
-- Phase 1 (implemented): ESConv emotion flow baselines with plots and trajectory scores.  
-- Phase 2 (implemented): 6-strategy taxonomy + prompt templates + HF classifier scaffolding.  
-- Phase 3 (implemented): robust single-turn two-agent simulator with seed fallbacks, meta/logging, and full LLM-seeded grid.  
-- Phase 4 (prototype): deterministic policy rollouts over 5 turns with calming/provocative/validate baselines.  
-- Future (proposal): expand policy learning (bandit/RL), more runs for tighter CIs, additional emotion judges/safety checks.
