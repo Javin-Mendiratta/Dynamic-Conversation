@@ -1,18 +1,35 @@
 # Notebooks Guide
 
-- Purpose: runnable experiments and result generation; keep logic in `dynamic_conversation/` and import it here.
-- Environment: use Conda env `dynamic-conversation` locally; kernelspec `dyn-conv` (`python -m ipykernel install --user --name dyn-conv --display-name "dyn-conv"`).
-- Colab: either connect to local runtime and pick `dyn-conv`, or on hosted Colab `pip install git+<repo-url>` (and `requirements-colab.txt` once added) then run with GPU as needed.
-- Outputs: avoid committing large outputs; write figures/CSVs/HTML to `results/` with run configs/seeds logged alongside.
-- Strategy prompts: import via `from dynamic_conversation import ResponseStrategy, build_strategy_prompt, STRATEGY_PROMPT_TEMPLATES` for notebook simulations.
-- Single-turn simulations: import via `from dynamic_conversation import SingleTurnSimulator, SimulationConfig` for Phase 3 runs (OpenAI key required). Defaults: `gpt-4o-mini`, completion cap 400 with auto bump on limit errors, brevity hints, and seed fallbacks (LLM → synthetic; optional ESConv seed bank via `esconv_seeds`). Recommended to bump `max_tokens` (e.g., 800) for sanity runs.
-- Emotion flow notebook: `EmotionFlowAnalyzer` defaults to batch_size=64 for GPU (A100); reduce batch size if you encounter memory pressure.
-- ESConv seeding: use `build_esconv_seed_bank` to pull first-turn openers from ESConv (short, classifier-checked into DistilRoBERTa labels) and pass as `esconv_seeds`; enable with `use_esconv_seed=True` in `run_batch`.
-- Notebook map:
-  - `esconv_emotion_flow.ipynb`: Phase 1 exploration using `EmotionFlowAnalyzer` over ESConv; mirrors `main` in `dynamic_conversation/emotion_map.py` (classification, transitions, trajectory scores, plots). GPU-friendly via Colab.
-  - `esconv_strategy_exploration.ipynb`: Strategy exploration using `EmotionStrategyAnalyzer` (6-strategy fine-tune + analysis) over ESConv; mirrors `main` in `dynamic_conversation/response_strategy.py`. GPU recommended.
-  - `single_turn_simulation.ipynb`: Phase 3 demo using `SingleTurnSimulator` with synthetic seeds + strategy prompts; writes CSV/heatmap to `results/`.
-  - `sanity_single_turn.ipynb`: quick 2-emotion sanity run to confirm non-empty seeds/replies and check log/meta after robustness fixes.
-  - `seed_comparison_single_turn.ipynb`: compares synthetic vs LLM vs ESConv seeding modes on a tiny grid to pick the best seed source for larger runs.
-  - `multiturn_policy_comparison.ipynb`: Phase 4 demo comparing calming vs provocative vs validate policies over 5 turns (small grid) using `MultiTurnRollout`; saves per-turn logs, summaries, and heatmaps to `results/multiturn_runs/`.
-  - `error_analysis_single_turn.ipynb`: Phase 3 error analysis; loads the full LLM run CSV, reports alignment/confidence stats, and surfaces sample mismatches/low-confidence cases with Markdown-logged findings.
+Purpose: runnable experiments and result generation for the CS 685 Dynamic Conversation project. All notebooks import code from `dynamic_conversation/`—do not duplicate logic in the notebooks.
+
+## How to run (local)
+- Create/activate any Python environment and `pip install -e .` from the repo root (deps in `pyproject.toml`).
+- Optional: install a kernelspec for convenience: `python -m ipykernel install --user --name dyn-conv --display-name "dyn-conv"`.
+- Set `OPENAI_API_KEY` in your shell if you plan to run simulations.
+
+## How to run (Colab)
+1) New notebook → `!pip install git+https://github.com/<your-username>/Dynamic-Conversation.git` (or upload a zip).  
+2) Add the OpenAI key using Colab user data (recommended) or a plain env var:  
+   ```python
+   from google.colab import userdata
+   import os
+   os.environ["OPENAI_API_KEY"] = userdata.get("OpenAI")  # assumes you saved a secret named "OpenAI"
+   # or: os.environ["OPENAI_API_KEY"] = "sk-..."
+   ```  
+   The simulators will prompt for a key if the env var is missing, but setting it upfront avoids interruptions.  
+3) (Optional) Enable GPU in Colab and, if needed, install GPU wheels for torch for faster emotion classification.
+
+## API and defaults to know
+- Strategy prompts: `from dynamic_conversation import ResponseStrategy, build_strategy_prompt, STRATEGY_PROMPT_TEMPLATES`.
+- Single-turn sims: `from dynamic_conversation import SingleTurnSimulator, SimulationConfig`. Defaults: `gpt-4o-mini`, `max_tokens=400` with auto bump on output-limit errors, temperature 1.0, brevity hints baked into prompts, seed fallbacks LLM → synthetic (ESConv seeds if provided).
+- Emotion classifier: `EmotionFlowAnalyzer` uses `j-hartmann/emotion-english-distilroberta-base`; GPU optional. If you hit memory pressure, lower `batch_size` in the analyzer.
+- ESConv seeding: build with `build_esconv_seed_bank` (first-turn ESConv openers, classifier-filtered); enable via `use_esconv_seed=True` in sims. Seed priority: ESConv (if provided) → LLM (`use_llm_seed=True`) → synthetic templates.
+
+## Notebook map
+- `esconv_emotion_flow.ipynb`: Phase 1 ESConv emotion flow (classification, transitions, trajectory scores, plots).  
+- `esconv_strategy_exploration.ipynb`: Phase 2 strategy taxonomy + prompt/classifier scaffold on ESConv.  
+- `single_turn_simulation.ipynb`: Phase 3 demo grid with single-turn simulations; writes CSV/heatmap to `results/`.  
+- `sanity_single_turn.ipynb`: Quick non-empty sanity check for seeds/replies after robustness fixes.  
+- `seed_comparison_single_turn.ipynb`: Tiny grid comparing synthetic vs LLM vs ESConv seeding modes.  
+- `multiturn_policy_comparison.ipynb`: Phase 4 small-grid comparison of calming vs provocative vs validate policies over 5 turns; saves per-turn logs, summaries, heatmaps to `results/multiturn_runs/`.  
+- `error_analysis_single_turn.ipynb`: Phase 3 error analysis; loads the full LLM run, reports alignment/confidence stats, and surfaces sampled mismatches with notes.
